@@ -1,0 +1,19 @@
+version: '3'
+
+name: caddy
+
+services:
+  caddy:
+    container_name: caddy
+    image: caddy
+    restart: always
+    ports:
+      - 80:80  # Needed for the ACME HTTP-01 challenge.
+      - 443:443
+      - 443:443/udp # Needed for HTTP/3
+    volumes:
+      - caddy-config:/config
+      - caddy-data:/data
+volumes:
+  caddy-config:
+  caddy-data:
