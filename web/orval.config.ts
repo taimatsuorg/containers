@@ -2,7 +2,7 @@ import { defineConfig } from "orval"
 
 export default defineConfig({
   zeabur: {
-    input: "../crates/zeabur-api/openapi.yaml",
+    input: "../server/openapi.yaml",
     output: {
       target: "src/api/zeabur.ts",
       client: "fetch",

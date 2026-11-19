@@ -1,0 +1,6 @@
+package: openapi
+output: internal/api/openapi/types.gen.go
+generate:
+  models: true
+compatibility:
+  always-prefix-enum-values: true
