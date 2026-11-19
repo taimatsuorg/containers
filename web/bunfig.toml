@@ -1,0 +1,3 @@
+[test]
+# `~icons/ph/<name>` imports, built as in vite.config.ts, and English loaded.
+preload = ["./scripts/test-icons.ts", "./scripts/test-i18n.ts"]

@@ -1,0 +1,1698 @@
+// Databases an operator runs: the objects Zeabur's forms create, and what the pages show of them.
+//
+// PostgreSQL is a CloudNativePG `Cluster`; its backups go through the Barman Cloud plugin (an
+// `ObjectStore` with the S3 target, named in the cluster's `spec.plugins`, and `ScheduledBackup` /
+// `Backup` objects with `method: plugin`). The in-tree `barmanObjectStore` is deprecated and gone in
+// CloudNativePG 1.32.
+// https://cloudnative-pg.io/plugin-barman-cloud/docs/usage/
+//
+// MongoDB is a `PerconaServerMongoDB` replica set without sharding; its backups are Percona Backup
+// for MongoDB, configured in `spec.backup` (a storage and scheduled tasks), and an on-demand backup
+// is a `PerconaServerMongoDBBackup`.
+// https://docs.percona.com/percona-operator-for-mongodb/backups.html
+//
+// MySQL is a MOCO `MySQLCluster`; its backups are a `BackupPolicy` the cluster names, which MOCO
+// runs as a CronJob into `s3://<bucket>/moco/<namespace>/<name>`.
+// https://cybozu-go.github.io/moco/backup.html
+//
+// MariaDB is a mariadb-operator `MariaDB`; its backups are `Backup` objects, scheduled or not.
+// https://github.com/mariadb-operator/mariadb-operator/blob/main/docs/logical_backup.md
+//
+// Dragonfly is a Dragonfly Operator `Dragonfly`; it snapshots to its volume. It loads the same
+// snapshots when it starts, so they are not a separate copy, and Zeabur offers no backups for it.
+// https://www.dragonflydb.io/docs/managing-dragonfly/backups
+import type { Schemas } from "@/api/client"
+import type { ObjectAddress } from "@/api/queries"
+import type { Translate } from "@/i18n"
+import { secretData } from "@/lib/secret-data"
+import { AWS_KEYS, keysSecret, needsKeys, type S3Target } from "@/model/s3-destinations"
+import type { Event, Health } from "@/model/service"
+
+export type Database = Schemas.Database
+export type Engine = Schemas.DatabaseEngine
+type Change = Schemas.Change
+type Manifest = Record<string, unknown>
+
+export const engines: Engine[] = ["postgresql", "mongodb", "mysql", "mariadb", "dragonfly"]
+
+/** The catalogue component whose operator runs each engine. */
+export const engineOperator: Record<Engine, string> = {
+  postgresql: "cloudnative-pg",
+  mongodb: "percona-mongodb",
+  mysql: "moco",
+  mariadb: "mariadb-operator",
+  dragonfly: "dragonfly-operator",
+}
+
+const ENGINE_NAMES: Record<Engine, string> = {
+  postgresql: "PostgreSQL",
+  mongodb: "MongoDB",
+  mysql: "MySQL",
+  mariadb: "MariaDB",
+  dragonfly: "Dragonfly",
+}
+
+export const engineName = (engine: Engine) => ENGINE_NAMES[engine]
+
+/** The server's licence, when it is not an open-source one. */
+export const engineLicence: Partial<Record<Engine, string>> = {
+  dragonfly: "Apache-2.0 AND BUSL-1.1",
+}
+
+/** Server versions the form offers, newest first; the first is the default. */
+export const versions: Record<Engine, { label: string; image: string }[]> = {
+  postgresql: [
+    { label: "18", image: "ghcr.io/cloudnative-pg/postgresql:18-standard-trixie" },
+    { label: "17", image: "ghcr.io/cloudnative-pg/postgresql:17-standard-trixie" },
+    { label: "16", image: "ghcr.io/cloudnative-pg/postgresql:16-standard-trixie" },
+  ],
+  mongodb: [
+    { label: "8.0", image: "percona/percona-server-mongodb:8.0.32-14" },
+    { label: "7.0", image: "percona/percona-server-mongodb:7.0.43-23" },
+  ],
+  mysql: [{ label: "8.4", image: "ghcr.io/cybozu-go/moco/mysql:8.4.10" }],
+  mariadb: [
+    { label: "12.3", image: "mariadb:12.3.3" },
+    { label: "11.8", image: "mariadb:11.8.3" },
+  ],
+  dragonfly: [{ label: "1.34", image: "docker.dragonflydb.io/dragonflydb/dragonfly:v1.34.1" }],
+}
+
+/** The Percona Backup for MongoDB agent the operator's 1.23 chart ships. */
+const PBM_IMAGE = "percona/percona-backup-mongodb:2.15.0"
+
+export type SizePreset = "small" | "medium" | "large"
+export const sizePresets: SizePreset[] = ["small", "medium", "large"]
+
+interface Resources {
+  requests: { cpu: string; memory: string }
+  limits: { cpu?: string; memory: string }
+}
+
+/** Per member. MongoDB's cache takes half of memory less 1 GiB, at least 256 MiB, so it starts
+ * higher. https://www.mongodb.com/docs/manual/core/wiredtiger/#memory-use */
+export const presetResources: Record<Engine, Record<SizePreset, Resources>> = {
+  postgresql: {
+    small: { requests: { cpu: "100m", memory: "256Mi" }, limits: { memory: "512Mi" } },
+    medium: { requests: { cpu: "500m", memory: "1Gi" }, limits: { memory: "1Gi" } },
+    large: { requests: { cpu: "1", memory: "2Gi" }, limits: { memory: "2Gi" } },
+  },
+  mongodb: {
+    small: { requests: { cpu: "100m", memory: "512Mi" }, limits: { memory: "1Gi" } },
+    medium: { requests: { cpu: "500m", memory: "1Gi" }, limits: { memory: "2Gi" } },
+    large: { requests: { cpu: "1", memory: "2Gi" }, limits: { memory: "4Gi" } },
+  },
+  mysql: {
+    small: { requests: { cpu: "100m", memory: "512Mi" }, limits: { memory: "1Gi" } },
+    medium: { requests: { cpu: "500m", memory: "1Gi" }, limits: { memory: "2Gi" } },
+    large: { requests: { cpu: "1", memory: "2Gi" }, limits: { memory: "4Gi" } },
+  },
+  mariadb: {
+    small: { requests: { cpu: "100m", memory: "256Mi" }, limits: { memory: "512Mi" } },
+    medium: { requests: { cpu: "500m", memory: "1Gi" }, limits: { memory: "1Gi" } },
+    large: { requests: { cpu: "1", memory: "2Gi" }, limits: { memory: "2Gi" } },
+  },
+  dragonfly: {
+    small: { requests: { cpu: "100m", memory: "128Mi" }, limits: { cpu: "1", memory: "384Mi" } },
+    medium: { requests: { cpu: "500m", memory: "256Mi" }, limits: { cpu: "2", memory: "768Mi" } },
+    large: { requests: { cpu: "1", memory: "512Mi" }, limits: { cpu: "4", memory: "1280Mi" } },
+  },
+}
+
+const MIB = 1024 * 1024
+const UNITS: Record<string, number> = { Ki: 1024, Mi: MIB, Gi: 1024 * MIB, K: 1e3, M: 1e6, G: 1e9 }
+
+const bytes = (quantity: string): number => {
+  const m = /^(\d+(?:\.\d+)?)(Ki|Mi|Gi|K|M|G)?$/.exec(quantity)
+  return m ? Number(m[1]) * (UNITS[m[2] ?? ""] ?? 1) : 0
+}
+
+const cores = (quantity: string): number =>
+  quantity.endsWith("m") ? Number(quantity.slice(0, -1)) / 1000 : Number(quantity)
+
+/** Dragonfly runs a thread per CPU of its limit, else per CPU of the node, and each thread needs
+ * 256 MiB of `maxmemory`. So the threads and `maxmemory` follow the limits instead of the node:
+ * the CPU limit sets the threads (the flag is ignored then), else the memory limit holds 80% of
+ * 256 MiB each. https://github.com/dragonflydb/dragonfly/blob/main/src/server/dfly_main.cc */
+export function dragonflyArgs(limits: Resources["limits"]): string[] {
+  const cpu = limits.cpu ? cores(limits.cpu) : 0
+  const threads =
+    cpu > 0 ? Math.ceil(cpu) : Math.max(1, Math.floor((0.8 * bytes(limits.memory)) / (256 * MIB)))
+  return [
+    `--proactor_threads=${threads}`,
+    `--maxmemory=${threads * 256}mb`,
+    "--version_check=false",
+  ]
+}
+
+const DRAGONFLY_OWN = ["--proactor_threads=", "--maxmemory=", "--version_check="]
+
+/** `args` with the flags Zeabur sets from the size replaced and the others kept. */
+function withDragonflyArgs(args: unknown, limits: Resources["limits"]): string[] {
+  return [
+    ...((args as string[] | undefined) ?? []).filter(
+      (arg) => !DRAGONFLY_OWN.some((own) => arg.startsWith(own)),
+    ),
+    ...dragonflyArgs(limits),
+  ]
+}
+
+/** The preset whose numbers the database asks for, if any. */
+export function presetOf(engine: Engine, resources: unknown): SizePreset | undefined {
+  const asked = sorted(resources ?? null)
+  return sizePresets.find((p) => sorted(presetResources[engine][p]) === asked)
+}
+
+/** JSON with object keys in order: the API may return them in another. */
+const sorted = (value: unknown): string =>
+  JSON.stringify(value, (_, v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)))
+      : v,
+  )
+
+export interface NewDatabase {
+  engine: Engine
+  name: string
+  /** A `versions` label. */
+  version: string
+  members: number
+  storage: string
+  /** The StorageClass its volumes ask for; none for the cluster's default. */
+  storageClass?: string
+  size: SizePreset
+}
+
+/** MongoDB 8 or later, from a version label (`8.0`), a version (`8.0.32-14`) or an image. */
+function mongo8OrLater(version: string | null | undefined): boolean {
+  const match = /(?:^|:)(\d+)\./.exec(version ?? "")
+  return match ? Number(match[1]) >= 8 : false
+}
+
+// Percona's image sets glibc.pthread.rseq=0 for TCMalloc's per-CPU caches. mongod 8 does not
+// start with them on Linux 6.19 and later; with rseq=1 TCMalloc uses per-thread caches.
+// https://jira.mongodb.org/browse/SERVER-121912
+const TUNABLES = "GLIBC_TUNABLES"
+const RSEQ = "glibc.pthread.rseq"
+const PER_THREAD = `${RSEQ}=1`
+
+/** `env` with `GLIBC_TUNABLES` set to keep rseq in glibc; other tunables stay. */
+function withPerThreadCaches(env: Manifest[] = []): Manifest[] {
+  const current = env.find((e) => e.name === TUNABLES)
+  if (!current) return [...env, { name: TUNABLES, value: PER_THREAD }]
+  const others = typeof current.value === "string" ? current.value.split(":") : []
+  const value = [...others.filter((t) => t && !t.startsWith(`${RSEQ}=`)), PER_THREAD].join(":")
+  return env.map((e) => (e === current ? { name: TUNABLES, value } : e))
+}
+
+const hasPerThreadCaches = (replset: Manifest) =>
+  ((replset.env as Manifest[] | undefined) ?? []).some(
+    (e) =>
+      e.name === TUNABLES && typeof e.value === "string" && e.value.split(":").includes(PER_THREAD),
+  )
+
+/** Each replica set of a MongoDB 8 `PerconaServerMongoDB` spec with per-thread caches;
+ * `version` counts when the spec names no image. */
+export function perThreadCaches(spec: Manifest, version?: string | null) {
+  if (!mongo8OrLater((spec.image as string | undefined) ?? version)) return
+  const replsets = (spec.replsets as Manifest[] | undefined) ?? []
+  spec.replsets = replsets.map((r) =>
+    hasPerThreadCaches(r) ? r : { ...r, env: withPerThreadCaches(r.env as Manifest[]) },
+  )
+}
+
+/** The note a MongoDB 8 gets: the setting is there, or missing. */
+export function rseqNote(database: Database): "set" | "missing" | undefined {
+  if (database.engine !== "mongodb" || !mongo8OrLater(database.version ?? database.image)) return
+  const spec = (database.object as Manifest & { spec?: Manifest }).spec ?? {}
+  const replsets = (spec.replsets as Manifest[] | undefined) ?? []
+  return replsets.every(hasPerThreadCaches) ? "set" : "missing"
+}
+
+/** The edit that gives an existing MongoDB 8 per-thread caches. */
+export const addPerThreadCaches = (database: Database): Change[] =>
+  editObject(database, (spec) => perThreadCaches(spec, database.version ?? database.image))
+
+/** Defaults for the form: one member on a single node, else three. */
+const defaults: Record<Engine, { name: string; storage: string; quorum: boolean }> = {
+  postgresql: { name: "postgres", storage: "5Gi", quorum: false },
+  mongodb: { name: "mongodb", storage: "10Gi", quorum: true },
+  mysql: { name: "mysql", storage: "10Gi", quorum: true },
+  mariadb: { name: "mariadb", storage: "10Gi", quorum: false },
+  dragonfly: { name: "dragonfly", storage: "2Gi", quorum: false },
+}
+
+export function newDatabase(engine: Engine, nodes: number): NewDatabase {
+  const d = defaults[engine]
+  return {
+    engine,
+    name: d.name,
+    version: versions[engine][0]?.label ?? "",
+    members: d.quorum && nodes > 1 ? 3 : 1,
+    storage: d.storage,
+    size: "small",
+  }
+}
+
+/** Member counts the form offers. A MongoDB replica set and a MOCO cluster vote, so their counts
+ * are odd. */
+export const memberChoices: Record<Engine, number[]> = {
+  postgresql: [1, 2, 3, 4, 5],
+  mongodb: [1, 3, 5],
+  mysql: [1, 3, 5],
+  mariadb: [1, 2, 3],
+  dragonfly: [1, 2, 3],
+}
+
+const DNS_LABEL = /^[a-z]([-a-z0-9]*[a-z0-9])?$/
+/** Short enough for every name the operators derive from it (`<name>-rs0-0`, `<name>-backups`,
+ * `moco-backup-<name>`). */
+const NAME_MAX = 30
+
+export type NameProblem = "empty" | "invalid" | "long" | "taken"
+
+export function nameProblem(name: string, taken: string[]): NameProblem | undefined {
+  if (name === "") return "empty"
+  if (name.length > NAME_MAX) return "long"
+  if (!DNS_LABEL.test(name)) return "invalid"
+  if (taken.includes(name)) return "taken"
+  return undefined
+}
+
+const create = (object: Manifest): Change => ({
+  op: "create",
+  object: { ...object },
+})
+
+/** Every object Zeabur makes for a database carries this label with the database's name, so
+ * `kubectl delete -l zeabur.com/database=<name>` removes them, and so does deleting it here. */
+export const DATABASE_LABEL = "zeabur.com/database"
+
+/** `changes`, with each object they create labelled as made for `database`. */
+export function madeFor(database: string, changes: Change[]): Change[] {
+  return changes.map((change) =>
+    change.op === "create" || change.op === "copyS3Keys"
+      ? { ...change, object: labelled(database, change.object as Manifest) as never }
+      : change,
+  )
+}
+
+const labelled = (database: string, object: Manifest): Manifest => {
+  const metadata = (object.metadata as Manifest | undefined) ?? {}
+  const labels = { ...(metadata.labels as Manifest | undefined), [DATABASE_LABEL]: database }
+  return { ...object, metadata: { ...metadata, labels } }
+}
+
+const imageOf = (engine: Engine, label: string) =>
+  versions[engine].find((v) => v.label === label)?.image ?? versions[engine][0]?.image ?? ""
+
+const restricted = {
+  allowPrivilegeEscalation: false,
+  capabilities: { drop: ["ALL"] },
+}
+
+/** A pod that passes the restricted Pod Security Standard, as `uid`. */
+const restrictedPod = (uid: number) => ({
+  runAsNonRoot: true,
+  runAsUser: uid,
+  runAsGroup: uid,
+  fsGroup: uid,
+  fsGroupChangePolicy: "OnRootMismatch",
+  seccompProfile: { type: "RuntimeDefault" },
+})
+
+const claimSpec = (storage: string, storageClass?: string) => ({
+  accessModes: ["ReadWriteOnce"],
+  ...(storageClass ? { storageClassName: storageClass } : {}),
+  resources: { requests: { storage } },
+})
+
+const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+/** 24 letters and digits, safe in a URL without escaping. */
+export function newPassword(): string {
+  let out = ""
+  while (out.length < 24)
+    for (const byte of crypto.getRandomValues(new Uint8Array(32)))
+      if (byte < 248 && out.length < 24) out += ALPHABET[byte % ALPHABET.length]
+  return out
+}
+
+const secret = (name: string, data: Record<string, string>) =>
+  create({ apiVersion: "v1", kind: "Secret", metadata: { name }, type: "Opaque", stringData: data })
+
+/** MOCO's containers besides `mysqld`, which run as the pod's user. */
+const MOCO_CONTAINERS = ["agent", "moco-init", "slow-log"]
+
+type Build = (form: NewDatabase, image: string, resources: Resources) => Manifest
+
+/** The object the form creates, by engine. */
+const BUILD: Record<Engine, Build> = {
+  postgresql: (form, image, resources) => {
+    return {
+      apiVersion: "postgresql.cnpg.io/v1",
+      kind: "Cluster",
+      metadata: { name: form.name },
+      spec: {
+        instances: form.members,
+        imageName: image,
+        storage: {
+          size: form.storage,
+          ...(form.storageClass ? { storageClass: form.storageClass } : {}),
+        },
+        resources,
+      },
+    }
+  },
+  mongodb: (form, image, resources) => {
+    const object = {
+      apiVersion: "psmdb.percona.com/v1",
+      kind: "PerconaServerMongoDB",
+      // The operator deletes the data claims with the cluster, as CloudNativePG does.
+      // https://docs.percona.com/percona-operator-for-mongodb/operator.html#metadata
+      metadata: { name: form.name, finalizers: ["percona.com/delete-psmdb-pvc"] },
+      spec: {
+        image,
+        // Fewer than three members is allowed only when asked for by name: it has no redundancy.
+        // https://docs.percona.com/percona-operator-for-mongodb/operator.html#unsafeflagsreplsetsize
+        ...(form.members < 3 ? { unsafeFlags: { replsetSize: true } } : {}),
+        replsets: [
+          {
+            name: "rs0",
+            size: form.members,
+            resources,
+            volumeSpec: {
+              persistentVolumeClaim: {
+                ...(form.storageClass ? { storageClassName: form.storageClass } : {}),
+                resources: { requests: { storage: form.storage } },
+              },
+            },
+          },
+        ],
+        sharding: { enabled: false },
+        // Without a name the operator uses one shared by every cluster of the namespace.
+        secrets: { users: `${form.name}-secrets` },
+        // The user services connect as; the operator keeps its password in
+        // `<name>-custom-user-secret`, key `app`.
+        users: [{ name: "app", db: "app", roles: [{ name: "readWrite", db: "app" }] }],
+        backup: { enabled: false, image: PBM_IMAGE },
+      },
+    }
+    perThreadCaches(object.spec)
+    return object
+  },
+  mysql: (form, image, resources) => {
+    // MOCO's images run as 10000. The annotations name the database and Secret that the
+    // setup Job makes for services.
+    return {
+      apiVersion: "moco.cybozu.com/v1beta2",
+      kind: "MySQLCluster",
+      metadata: {
+        name: form.name,
+        annotations: { [APP_DATABASE]: "app", [APP_SECRET]: `${form.name}-app` },
+      },
+      spec: {
+        replicas: form.members,
+        podTemplate: {
+          spec: {
+            securityContext: restrictedPod(10000),
+            containers: [{ name: "mysqld", image, resources, securityContext: restricted }],
+          },
+          overwriteContainers: MOCO_CONTAINERS.map((name) => ({
+            name,
+            securityContext: restricted,
+          })),
+        },
+        volumeClaimTemplates: [
+          {
+            metadata: { name: "mysql-data" },
+            spec: claimSpec(form.storage, form.storageClass),
+          },
+        ],
+      },
+    }
+  },
+  mariadb: (form, image, resources) => {
+    return {
+      apiVersion: "k8s.mariadb.com/v1alpha1",
+      kind: "MariaDB",
+      metadata: { name: form.name },
+      spec: {
+        image,
+        replicas: form.members,
+        ...(form.members > 1 ? { replication: { enabled: true } } : {}),
+        rootPasswordSecretKeyRef: { name: `${form.name}-root`, key: "password", generate: false },
+        database: "app",
+        username: "app",
+        passwordSecretKeyRef: { name: `${form.name}-app`, key: "password", generate: false },
+        storage: {
+          size: form.storage,
+          ...(form.storageClass ? { storageClassName: form.storageClass } : {}),
+        },
+        resources,
+        podSecurityContext: restrictedPod(999),
+        securityContext: restricted,
+      },
+    }
+  },
+  dragonfly: (form, image, resources) => {
+    return {
+      apiVersion: "dragonflydb.io/v1alpha1",
+      kind: "Dragonfly",
+      metadata: { name: form.name },
+      spec: {
+        image,
+        replicas: form.members,
+        resources,
+        args: dragonflyArgs(resources.limits),
+        authentication: { passwordFromSecret: { name: `${form.name}-auth`, key: "password" } },
+        // Snapshots on a volume each hour; Dragonfly also saves one when it stops.
+        snapshot: {
+          cron: "0 * * * *",
+          persistentVolumeClaimSpec: claimSpec(form.storage, form.storageClass),
+        },
+        podSecurityContext: restrictedPod(999),
+        containerSecurityContext: restricted,
+      },
+    }
+  },
+}
+
+const databaseObject = (form: NewDatabase): Manifest =>
+  BUILD[form.engine](
+    form,
+    imageOf(form.engine, form.version),
+    presetResources[form.engine][form.size],
+  )
+
+/** The Secrets Zeabur makes for a database: the app passwords, MariaDB's root, Dragonfly's. */
+function passwordSecrets(form: NewDatabase, password: () => string): Change[] {
+  if (form.engine === "mysql") return [secret(`${form.name}-app`, { password: password() })]
+  if (form.engine === "mariadb")
+    return [
+      secret(`${form.name}-root`, { password: password() }),
+      secret(`${form.name}-app`, { password: password() }),
+    ]
+  if (form.engine === "dragonfly") return [secret(`${form.name}-auth`, { password: password() })]
+  return []
+}
+
+export const APP_DATABASE = "zeabur.com/app-database"
+export const APP_SECRET = "zeabur.com/app-secret"
+
+// Waits for the primary, then makes the database and its user as `moco-writable`. The passwords
+// go in through a file descriptor and standard input, so no process's arguments hold them.
+const APP_SETUP = `set -eu
+sql() { mysql --defaults-extra-file=<(printf '[client]\\npassword=%s\\n' "$WRITABLE_PASSWORD") -h "$HOST" -u moco-writable "$@"; }
+for _ in $(seq 120); do sql -e 'SELECT 1' >/dev/null 2>&1 && break; sleep 5; done
+sql <<SQL
+CREATE DATABASE IF NOT EXISTS app;
+CREATE USER IF NOT EXISTS 'app'@'%' IDENTIFIED BY '$APP_PASSWORD';
+GRANT ALL ON app.* TO 'app'@'%';
+SQL`
+
+/** MOCO makes no database: this Job makes `app` and its user, as the person who creates it. */
+function appSetup(form: NewDatabase, image: string): Manifest {
+  const from = (name: string, key: string) => ({ secretKeyRef: { name, key } })
+  return {
+    apiVersion: "batch/v1",
+    kind: "Job",
+    metadata: { name: `${form.name}-app-setup` },
+    spec: {
+      backoffLimit: 6,
+      template: {
+        spec: {
+          restartPolicy: "OnFailure",
+          securityContext: restrictedPod(10000),
+          containers: [
+            {
+              name: "setup",
+              image,
+              command: ["bash", "-c", APP_SETUP],
+              env: [
+                { name: "HOST", value: `moco-${form.name}-primary` },
+                {
+                  name: "WRITABLE_PASSWORD",
+                  valueFrom: from(`moco-${form.name}`, "WRITABLE_PASSWORD"),
+                },
+                { name: "APP_PASSWORD", valueFrom: from(`${form.name}-app`, "password") },
+              ],
+              securityContext: restricted,
+            },
+          ],
+        },
+      },
+    },
+  }
+}
+
+export const createDatabase = (form: NewDatabase, password = newPassword): Change[] =>
+  madeFor(form.name, [
+    ...passwordSecrets(form, password),
+    create(databaseObject(form)),
+    ...(form.engine === "mysql" ? [create(appSetup(form, imageOf("mysql", form.version)))] : []),
+  ])
+
+export type Frequency = "daily" | "weekly"
+
+export interface BackupTarget extends S3Target {
+  frequency: Frequency
+  /** How many days of backups to keep. */
+  keepDays: number
+}
+
+export const newBackupTarget = (): BackupTarget => ({
+  endpoint: "",
+  bucket: "",
+  path: "",
+  region: "",
+  accessKey: "",
+  secretKey: "",
+  frequency: "daily",
+  keepDays: 7,
+})
+
+export type TargetProblem = "endpoint" | "bucket" | "keys" | "keep"
+
+/** The most days of backups the form keeps. */
+export const MAX_KEEP_DAYS = 365
+
+/** What is wrong with the form; with `keysExist`, keys left empty keep the Secret's. */
+export function targetProblems(target: BackupTarget, keysExist = false): TargetProblem[] {
+  const problems: TargetProblem[] = []
+  if (!/^https?:\/\/[^\s/]+/.test(target.endpoint.trim())) problems.push("endpoint")
+  if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(target.bucket.trim())) problems.push("bucket")
+  if (needsKeys(target) && !keepsKeys(target, keysExist)) problems.push("keys")
+  if (!Number.isInteger(target.keepDays) || target.keepDays < 1 || target.keepDays > MAX_KEEP_DAYS)
+    problems.push("keep")
+  return problems
+}
+
+/** The names Zeabur gives what backs a database up. */
+export const backupNames = (name: string) => ({
+  secret: `${name}-backups-s3`,
+  store: `${name}-backups`,
+  schedule: `${name}-scheduled`,
+  account: `${name}-backup`,
+})
+
+const folder = (target: BackupTarget, name: string) =>
+  target.path.trim().replace(/^\/+|\/+$/g, "") || name
+
+/** CloudNativePG's cron has a seconds field first; Percona's has five fields. 03:00 UTC. */
+const cron = (frequency: Frequency, seconds: boolean) =>
+  `${seconds ? "0 " : ""}0 3 * * ${frequency === "weekly" ? "0" : "*"}`
+
+const PLUGIN = "barman-cloud.cloudnative-pg.io"
+
+/** The bucket and folder of `s3://bucket/folder`. */
+export function splitDestination(destination: string | null | undefined) {
+  const [bucket = "", ...rest] = (destination ?? "").replace(/^s3:\/\//, "").split("/")
+  return { bucket, folder: rest.join("/") }
+}
+
+/** The ServiceAccount of MOCO's backup and restore Jobs. MOCO binds it to a Role of its own and the
+ * Jobs read the cluster through it, so its token stays mounted. */
+export const jobAccount = (name: string): Change =>
+  create({
+    apiVersion: "v1",
+    kind: "ServiceAccount",
+    metadata: { name },
+  })
+
+/** What MOCO's backup and restore Jobs ask for. The upstream default, 4 CPUs and 4 GiB, leaves
+ * the Jobs Pending on a small node. */
+export const MOCO_JOB_RESOURCES = { threads: 2, cpu: "500m", memory: "1Gi" } as const
+
+/** MOCO's backup and restore Jobs: the bucket, the keys from `secretName` as AWS variables, and a
+ * scratch volume as big as the data. They run as the ServiceAccount `account`.
+ * https://cybozu-go.github.io/moco/backup.html */
+function mocoJobConfig(
+  database: Pick<Database, "storage" | "storageClass">,
+  bucket: string,
+  endpoint: string | null | undefined,
+  secretName: string,
+  account: string,
+) {
+  return {
+    serviceAccountName: account,
+    bucketConfig: {
+      bucketName: bucket,
+      ...(endpoint ? { endpointURL: endpoint } : {}),
+      usePathStyle: true,
+    },
+    envFrom: [{ secretRef: { name: secretName } }],
+    ...MOCO_JOB_RESOURCES,
+    workVolume: {
+      ephemeral: {
+        volumeClaimTemplate: {
+          spec: claimSpec(database.storage ?? "10Gi", database.storageClass ?? undefined),
+        },
+      },
+    },
+  }
+}
+
+/** mariadb-operator's S3 storage: the endpoint without its scheme, TLS from it. */
+function mariaStorage(
+  bucket: string,
+  prefix: string,
+  endpoint: string,
+  region: string,
+  secretName: string,
+) {
+  return {
+    s3: {
+      bucket,
+      prefix,
+      endpoint: endpoint.replace(/^https?:\/\//, "").replace(/\/+$/, ""),
+      region: region || "us-east-1",
+      accessKeyIdSecretKeyRef: { name: secretName, key: "AWS_ACCESS_KEY_ID" },
+      secretAccessKeySecretKeyRef: { name: secretName, key: "AWS_SECRET_ACCESS_KEY" },
+      tls: { enabled: endpoint.startsWith("https://") },
+    },
+  }
+}
+
+const TEMPLATE_LABEL = "templates.zeabur.com/template"
+
+/** The labels of a MariaDB Backup's Pods: `app.kubernetes.io/component: backup`, and the template
+ * label of the database's Pods, so that a catalogue template's NetworkPolicies let them reach the
+ * database and the backup store. */
+function mariaBackupPods(database: Database) {
+  const spec = (database.object as { spec?: { podMetadata?: { labels?: Record<string, string> } } })
+    .spec
+  const template = spec?.podMetadata?.labels?.[TEMPLATE_LABEL]
+  return {
+    labels: {
+      "app.kubernetes.io/component": "backup",
+      ...(template ? { [TEMPLATE_LABEL]: template } : {}),
+    },
+  }
+}
+
+/** The engines Zeabur backs up to S3. */
+export type BackupEngine = Exclude<Engine, "dragonfly">
+
+export const backsUp = (engine: Engine): engine is BackupEngine => engine !== "dragonfly"
+
+/** The database's engine, for a database that `backsUp`. */
+export const backupEngine = (database: Database) => database.engine as BackupEngine
+
+/** Engines whose backups have no retention: the person sets a lifecycle rule on the bucket. */
+export const keepsEverything = (engine: Engine) => engine === "mysql"
+
+/** MOCO writes to a fixed folder, `moco/<namespace>/<name>`. */
+export const fixedFolder = (engine: Engine) => engine === "mysql"
+
+/** The keys of the backups' Secret, and the key of the region where the Secret holds it. */
+const SECRET_KEYS: Record<
+  BackupEngine,
+  { accessKeyId: string; secretAccessKey: string; region?: string }
+> = {
+  postgresql: {
+    accessKeyId: "ACCESS_KEY_ID",
+    secretAccessKey: "ACCESS_SECRET_KEY",
+    region: "REGION",
+  },
+  mongodb: AWS_KEYS,
+  mysql: { ...AWS_KEYS, region: "AWS_REGION" },
+  mariadb: { ...AWS_KEYS, region: "AWS_REGION" },
+}
+
+/** Engines whose region only the keys Secret holds, so the page cannot show it. */
+export const regionInSecret = (engine: Engine) => engine === "postgresql" || engine === "mysql"
+
+/** The name of the object Zeabur keeps the destination in, as `Store.name` says it. */
+const storeName = (database: Database) => {
+  const names = backupNames(database.name)
+  const name: Record<BackupEngine, string> = {
+    postgresql: names.store,
+    mongodb: "backups",
+    mysql: names.store,
+    mariadb: names.schedule,
+  }
+  return name[backupEngine(database)]
+}
+
+/** The schedule Zeabur set up, by its name in `Schedule.name` after the namespace. */
+function ownSchedule(database: Database) {
+  const names = backupNames(database.name)
+  const name: Record<BackupEngine, string> = {
+    postgresql: names.schedule,
+    mongodb: `${database.name}/scheduled`,
+    mysql: names.store,
+    mariadb: names.schedule,
+  }
+  return database.backups.schedules.find((s) => s.name.endsWith(`/${name[backupEngine(database)]}`))
+}
+
+/** The database's backups are the ones Zeabur set up, so its form can change them. */
+export function ownBackups(database: Database) {
+  const store = database.backups.store
+  return store?.name === storeName(database) && store.secret === backupNames(database.name).secret
+}
+
+/** Whole days in a duration such as "7d" or "168h". */
+export function daysOf(duration: string) {
+  const days = /^(\d+)d$/.exec(duration)?.[1]
+  if (days) return Number(days)
+  const hours = Number(/^(\d+)h$/.exec(duration)?.[1] ?? Number.NaN)
+  return hours % 24 === 0 ? hours / 24 : undefined
+}
+
+/** The days MongoDB's `runs` backups cover. The form's most days, weekly, round up to one more
+ * week, which reads back as those days. */
+function mongoDays(runs: number, frequency: Frequency) {
+  if (frequency === "daily") return runs
+  const days = runs * 7
+  return days - 7 < MAX_KEEP_DAYS ? Math.min(days, MAX_KEEP_DAYS) : days
+}
+
+/** The form as the database's backups are, with no keys: the keys Secret stays. */
+export function currentTarget(database: Database): BackupTarget {
+  const store = database.backups.store
+  const { bucket, folder } = splitDestination(store?.destination)
+  // MongoDB's schedule and retention are the scheduled task's, which the form writes.
+  const task = database.engine === "mongodb" ? scheduledTask(mongoBackup(database)) : undefined
+  const cron = String(task?.schedule ?? ownSchedule(database)?.cron ?? "")
+  const frequency: Frequency = cron.trim().split(/\s+/).at(-1) === "0" ? "weekly" : "daily"
+  const count = (task?.retention as Manifest | undefined)?.count
+  const days = task ? mongoDays(Number(count), frequency) : daysOf(store?.retention ?? "")
+  return {
+    ...newBackupTarget(),
+    endpoint: store?.endpoint ?? "",
+    bucket,
+    path: fixedFolder(database.engine) ? "" : folder,
+    region: store?.region ?? "",
+    frequency,
+    keepDays: days || 7,
+  }
+}
+
+/** The keys Secret exists and the form names no other keys, so the Secret stays. */
+const keepsKeys = (target: BackupTarget, keysExist: boolean) =>
+  keysExist &&
+  target.destination === undefined &&
+  target.accessKey.trim() === "" &&
+  target.secretKey.trim() === ""
+
+interface Writing {
+  database: Database
+  target: BackupTarget
+  /** What the objects say now, when they exist. */
+  current?: BackupTarget
+  keysExist: boolean
+  /** The kept keys Secret holds the region. Backups set up by v0.1.1 without a region have none. */
+  regionSaved: boolean
+}
+
+/** The keys Secret, by its `keys`, holds the region. */
+const holdsRegion = (database: Database, keys: string[]) => {
+  const key = SECRET_KEYS[backupEngine(database)].region
+  return key !== undefined && keys.includes(key)
+}
+
+/** Whether the keys Secret exists, by its values (`yaml`) or by the project's Secrets as listed,
+ * and whether it holds the region. A Secret the person may list but not read is taken to hold it,
+ * as Zeabur writes it. */
+export function backupKeys(database: Database, yaml?: string, listed?: Schemas.ObjectList) {
+  if (yaml !== undefined)
+    return { keysExist: true, regionSaved: holdsRegion(database, Object.keys(secretData(yaml))) }
+  const secret = backupNames(database.name).secret
+  const keysExist = (listed?.items ?? []).some(
+    (kind) => kind.resource === "secrets" && kind.items.some((o) => o.name === secret),
+  )
+  return { keysExist, regionSaved: keysExist }
+}
+
+/** The region key and value the keys Secret gets, unless a kept Secret keeps its own. */
+function regionEntry(database: Database, target: BackupTarget, keysExist: boolean) {
+  const key = SECRET_KEYS[backupEngine(database)].region
+  const region = target.region.trim()
+  if (!key || (keysExist && regionInSecret(database.engine) && region === "")) return {}
+  return { [key]: region || "us-east-1" }
+}
+
+/** The Secret's writes: none when it stays, else typed keys, or the keys of a destination. Where
+ * the Secret holds the region, an empty region keeps the one it has. */
+function keyWrites({ database, target, keysExist }: Writing): Change[] {
+  const name = backupNames(database.name).secret
+  const { region: _, ...keys } = SECRET_KEYS[backupEngine(database)]
+  const more: Record<string, string> = regionEntry(database, target, keysExist)
+  if (!keysExist || target.destination !== undefined) return [keysSecret(name, target, keys, more)]
+  const typed = keepsKeys(target, keysExist)
+    ? {}
+    : {
+        [keys.accessKeyId]: target.accessKey.trim(),
+        [keys.secretAccessKey]: target.secretKey.trim(),
+      }
+  const set = { ...typed, ...(regionInSecret(database.engine) ? more : {}) }
+  const changes = Object.entries(set).map(([key, value]) => ({ op: "set", key, value }))
+  return changes.length > 0 ? [{ op: "data", kind: "Secret", name, changes }] : []
+}
+
+const isMap = (value: unknown): value is Manifest =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+
+/** What `after` changes in `before`, as a JSON merge patch (RFC 7386): the changed fields, maps
+ * field by field, and a removed field as null. Empty when nothing changes. */
+function mergePatch(after: Manifest, before: Manifest): Manifest {
+  const patch: Manifest = {}
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const [a, b] = [after[key], before[key]]
+    if (a === undefined) patch[key] = null
+    else if (isMap(a) && isMap(b)) {
+      const inner = mergePatch(a, b)
+      if (Object.keys(inner).length > 0) patch[key] = inner
+    } else if (sorted(a) !== sorted(b)) patch[key] = a
+  }
+  return patch
+}
+
+/** `live` with what changes from `before` to `after`, so that what the form does not set stays;
+ * `after` itself when there is no `live`. */
+function patched(live: unknown, after: Manifest, before: Manifest = {}): Manifest {
+  if (!isMap(live)) return structuredClone(after)
+  const merged = structuredClone(live)
+  const apply = (target: Manifest, patch: Manifest) => {
+    for (const [key, value] of Object.entries(patch)) {
+      const at = target[key]
+      if (value === null) delete target[key]
+      else if (isMap(value) && isMap(at)) apply(at, value)
+      else target[key] = structuredClone(value)
+    }
+  }
+  apply(merged, mergePatch(after, before))
+  return merged
+}
+
+/** An edit that merges `spec` into the object's spec; the rest of the object stays. */
+function specEdit(
+  apiVersion: string,
+  kind: string,
+  resource: string,
+  name: string,
+  spec: Manifest,
+): Change[] {
+  if (Object.keys(spec).length === 0) return []
+  const [group = "", version = ""] = apiVersion.split("/")
+  const yaml = JSON.stringify({ apiVersion, kind, metadata: { name }, spec })
+  return [{ op: "edit", resource: { group, version, resource }, name, yaml, specOnly: true }]
+}
+
+/** `after`, of the plural `resource`, created, or, when the object exists as the form last wrote
+ * it, `before`, edited where the form changes it. */
+function write(database: Database, resource: string, after: Manifest, before?: Manifest): Change[] {
+  if (!before) return [create(labelled(database.name, after))]
+  const name = String((after.metadata as Manifest).name)
+  const spec = mergePatch(after.spec as Manifest, before.spec as Manifest)
+  return specEdit(String(after.apiVersion), String(after.kind), resource, name, spec)
+}
+
+/** The database's object edited by `change`, if that changes it: the one way Zeabur edits a
+ * database's object, as a merge patch with a null for each field `change` removes. */
+function editObject(database: Database, change: (spec: Manifest) => void): Change[] {
+  const before = ((database.object as { spec?: Manifest }).spec ?? {}) as Manifest
+  const after = structuredClone(before)
+  change(after)
+  const { resource } = databaseAddress(database)
+  const spec = mergePatch(after, before)
+  return specEdit(database.apiVersion, database.kind, resource, database.name, spec)
+}
+
+function postgresStore(database: Database, target: BackupTarget, region: boolean): Manifest {
+  const names = backupNames(database.name)
+  const key = (key: string) => ({ name: names.secret, key })
+  return {
+    apiVersion: "barmancloud.cnpg.io/v1",
+    kind: "ObjectStore",
+    metadata: { name: names.store },
+    spec: {
+      retentionPolicy: `${target.keepDays}d`,
+      configuration: {
+        destinationPath: `s3://${target.bucket.trim()}/${folder(target, database.name)}`,
+        endpointURL: target.endpoint.trim(),
+        s3Credentials: {
+          accessKeyId: key("ACCESS_KEY_ID"),
+          secretAccessKey: key("ACCESS_SECRET_KEY"),
+          ...(region ? { region: key("REGION") } : {}),
+        },
+        wal: { compression: "gzip" },
+        data: { compression: "gzip" },
+      },
+    },
+  }
+}
+
+function postgresSchedule(database: Database, target: BackupTarget, suspend: boolean): Manifest {
+  return {
+    apiVersion: "postgresql.cnpg.io/v1",
+    kind: "ScheduledBackup",
+    metadata: { name: backupNames(database.name).schedule },
+    spec: {
+      schedule: cron(target.frequency, true),
+      backupOwnerReference: "self",
+      cluster: { name: database.name },
+      method: "plugin",
+      pluginConfiguration: { name: PLUGIN },
+      ...(suspend ? { suspend: true } : {}),
+    },
+  }
+}
+
+const paused = (database: Database) => ownSchedule(database)?.paused === true
+const scheduled = (database: Database) => ownSchedule(database) !== undefined
+
+/** The cluster archives WAL to `store` through the Barman plugin, the plugin entry keeping its
+ * other fields. Without `store`, the entry is disabled, not removed: its parameters, such as the
+ * archive's server name, are what restoring and turning backups on again read. */
+function withPlugin(spec: Manifest, store?: string) {
+  const plugins = (spec.plugins as Manifest[] | undefined) ?? []
+  const own = plugins.find((p) => p.name === PLUGIN)
+  const entry = store
+    ? {
+        ...own,
+        name: PLUGIN,
+        ...(own && "enabled" in own ? { enabled: true } : {}),
+        isWALArchiver: true,
+        parameters: { ...(own?.parameters as Manifest | undefined), barmanObjectName: store },
+      }
+    : own && { ...own, enabled: false }
+  if (!entry) return
+  spec.plugins = own ? plugins.map((p) => (p === own ? entry : p)) : [...plugins, entry]
+}
+
+function postgresBackups(w: Writing): Change[] {
+  const { database, target, current, keysExist, regionSaved } = w
+  // The ObjectStore names REGION only when the Secret will hold it.
+  const region = regionSaved || Object.keys(regionEntry(database, target, keysExist)).length > 0
+  return [
+    ...keyWrites(w),
+    ...write(
+      database,
+      "objectstores",
+      postgresStore(database, target, region),
+      current && postgresStore(database, current, regionSaved),
+    ),
+    ...editObject(database, (spec) => withPlugin(spec, backupNames(database.name).store)),
+    ...write(
+      database,
+      "scheduledbackups",
+      postgresSchedule(database, target, false),
+      current && scheduled(database)
+        ? postgresSchedule(database, current, paused(database))
+        : undefined,
+    ),
+  ]
+}
+
+const mongoStorage = (database: Database, target: BackupTarget): Manifest => ({
+  type: "s3",
+  s3: {
+    bucket: target.bucket.trim(),
+    prefix: folder(target, database.name),
+    endpointUrl: target.endpoint.trim(),
+    region: target.region.trim() || "us-east-1",
+    credentialsSecret: backupNames(database.name).secret,
+    forcePathStyle: true,
+  },
+})
+
+function mongoTask(target: BackupTarget): Manifest {
+  const runs = target.frequency === "weekly" ? Math.ceil(target.keepDays / 7) : target.keepDays
+  return {
+    name: "scheduled",
+    enabled: true,
+    schedule: cron(target.frequency, false),
+    storageName: "backups",
+    type: "logical",
+    retention: { type: "count", count: runs, deleteFromStorage: true },
+  }
+}
+
+/** The task Zeabur schedules MongoDB's backups with. */
+const scheduledTask = (backup: Manifest | undefined) =>
+  ((backup?.tasks as Manifest[] | undefined) ?? []).find((t) => t.name === "scheduled")
+
+const mongoBackup = (database: Database) =>
+  (database.object as { spec?: { backup?: Manifest } }).spec?.backup
+
+function mongoBackups(w: Writing): Change[] {
+  const { database, target, current } = w
+  return [
+    ...keyWrites(w),
+    ...editObject(database, (spec) => {
+      const backup = (spec.backup ?? {}) as Manifest
+      const storages = (backup.storages ?? {}) as Manifest
+      const tasks = (backup.tasks as Manifest[] | undefined) ?? []
+      const own = scheduledTask(backup)
+      const task = patched(own, mongoTask(target), current && mongoTask(current))
+      spec.backup = {
+        ...backup,
+        enabled: true,
+        image: backup.image ?? PBM_IMAGE,
+        storages: {
+          ...storages,
+          backups: patched(
+            storages.backups,
+            mongoStorage(database, target),
+            current && mongoStorage(database, current),
+          ),
+        },
+        tasks: own ? tasks.map((t) => (t === own ? task : t)) : [...tasks, task],
+      }
+    }),
+  ]
+}
+
+function mysqlPolicy(database: Database, target: BackupTarget): Manifest {
+  const names = backupNames(database.name)
+  return {
+    apiVersion: "moco.cybozu.com/v1beta2",
+    kind: "BackupPolicy",
+    metadata: { name: names.store },
+    spec: {
+      schedule: cron(target.frequency, false),
+      concurrencyPolicy: "Forbid",
+      jobConfig: mocoJobConfig(
+        database,
+        target.bucket.trim(),
+        target.endpoint.trim(),
+        names.secret,
+        names.account,
+      ),
+    },
+  }
+}
+
+function mysqlBackups(w: Writing): Change[] {
+  const { database, target, current } = w
+  const names = backupNames(database.name)
+  return [
+    ...(current ? [] : madeFor(database.name, [jobAccount(names.account)])),
+    ...keyWrites(w),
+    ...write(
+      database,
+      "backuppolicies",
+      mysqlPolicy(database, target),
+      current && mysqlPolicy(database, current),
+    ),
+    ...editObject(database, (spec) => {
+      spec.backupPolicyName = names.store
+    }),
+  ]
+}
+
+function mariaBackup(database: Database, target: BackupTarget, suspend: boolean): Manifest {
+  const names = backupNames(database.name)
+  return {
+    apiVersion: "k8s.mariadb.com/v1alpha1",
+    kind: "Backup",
+    metadata: { name: names.schedule },
+    spec: {
+      mariaDbRef: { name: database.name },
+      schedule: { cron: cron(target.frequency, false), ...(suspend ? { suspend: true } : {}) },
+      maxRetention: `${target.keepDays * 24}h`,
+      compression: "gzip",
+      storage: mariaStorage(
+        target.bucket.trim(),
+        folder(target, database.name),
+        target.endpoint.trim(),
+        target.region.trim(),
+        names.secret,
+      ),
+      podMetadata: mariaBackupPods(database),
+      podSecurityContext: restrictedPod(999),
+      securityContext: restricted,
+    },
+  }
+}
+
+function mariaBackups(w: Writing): Change[] {
+  const { database, target, current } = w
+  return [
+    ...keyWrites(w),
+    ...write(
+      database,
+      "backups",
+      mariaBackup(database, target, false),
+      current && mariaBackup(database, current, paused(database)),
+    ),
+  ]
+}
+
+const BACKUPS: Record<BackupEngine, (w: Writing) => Change[]> = {
+  postgresql: postgresBackups,
+  mongodb: mongoBackups,
+  mysql: mysqlBackups,
+  mariadb: mariaBackups,
+}
+
+/**
+ * The writes that back a database up as `target` says: the keys as a Secret, where backups go,
+ * the schedule, and the database edited to use them (`object` is the database as written,
+ * `Database.object`). What Zeabur set up before is edited, only where it changes: backups that
+ * are on, or were turned off. `keysExist` says the keys Secret is there, `regionSaved` that it
+ * holds the region.
+ */
+export function writeBackups(
+  database: Database,
+  target: BackupTarget,
+  keysExist = false,
+  regionSaved = keysExist,
+): Change[] {
+  const current = ownBackups(database) ? currentTarget(database) : undefined
+  return madeFor(
+    database.name,
+    BACKUPS[backupEngine(database)]({ database, target, current, keysExist, regionSaved }),
+  )
+}
+
+const TURN_OFF: Record<BackupEngine, (database: Database, current: BackupTarget) => Change[]> = {
+  postgresql: (database, current) => [
+    ...editObject(database, (spec) => withPlugin(spec)),
+    ...(scheduled(database)
+      ? write(
+          database,
+          "scheduledbackups",
+          postgresSchedule(database, current, true),
+          postgresSchedule(database, current, paused(database)),
+        )
+      : []),
+  ],
+  mongodb: (database) =>
+    editObject(database, (spec) => {
+      const backup = (spec.backup as Manifest | undefined) ?? {}
+      spec.backup = { ...backup, enabled: false }
+    }),
+  // MOCO deletes the backup CronJob once the cluster names no policy; the policy stays.
+  mysql: (database) =>
+    editObject(database, (spec) => {
+      delete spec.backupPolicyName
+    }),
+  mariadb: (database, current) =>
+    write(
+      database,
+      "backups",
+      mariaBackup(database, current, true),
+      mariaBackup(database, current, paused(database)),
+    ),
+}
+
+/** Turning backups off: no schedule, and the database no longer uses where backups go. The keys
+ * Secret stays, so do the backups in the bucket, and what restoring from them reads where the
+ * operator lets it pause: CloudNativePG's plugin entry is disabled and its schedule paused,
+ * MariaDB's schedule pauses, MongoDB's storage and tasks, which keep the schedule and retention
+ * for turning backups on again, and MOCO's BackupPolicy stay. */
+export const turnOffBackups = (database: Database): Change[] =>
+  TURN_OFF[backupEngine(database)](database, currentTarget(database))
+
+/** Engines whose database restarts once its backups are turned on or off: a sidecar or new
+ * arguments. */
+const restartsForBackups = (engine: Engine) => engine === "postgresql" || engine === "mongodb"
+
+const where = (database: Database, target: BackupTarget) => {
+  const namespace = database.origin.namespace ?? ""
+  const path = fixedFolder(database.engine)
+    ? `moco/${namespace}/${database.name}`
+    : folder(target, database.name)
+  return `s3://${target.bucket.trim()}/${path} (${target.endpoint.trim()})`
+}
+
+/** The destination changes: another bucket, folder, endpoint or region. */
+function moves(database: Database, target: BackupTarget, current: BackupTarget) {
+  const region = target.region.trim()
+  return (
+    target.bucket.trim() !== current.bucket ||
+    target.endpoint.trim() !== current.endpoint ||
+    (!fixedFolder(database.engine) &&
+      folder(target, database.name) !== folder(current, database.name)) ||
+    (region !== current.region && (region !== "" || !regionInSecret(database.engine)))
+  )
+}
+
+function keysLine(t: Translate, database: Database, target: BackupTarget, keysExist: boolean) {
+  const secret = backupNames(database.name).secret
+  if (target.destination !== undefined)
+    return [
+      t(keysExist ? "db.backup.saidCopyKeys" : "confirm.copyS3Keys", secret, target.destination),
+    ]
+  if (!keysExist) return [t("db.backup.saidKeys", secret)]
+  return keepsKeys(target, keysExist) ? [] : [t("db.backup.saidNewKeys", secret)]
+}
+
+/** What `writeBackups` does, in the form's words. */
+export function backupsSummary(
+  t: Translate,
+  database: Database,
+  target: BackupTarget,
+  keysExist = false,
+) {
+  const on = backupsOn(database)
+  const restarts = !on && restartsForBackups(database.engine)
+  return {
+    lines: [
+      t("db.backup.said", database.name, target.frequency === "weekly", where(database, target)),
+      keepsEverything(database.engine)
+        ? t("db.backup.keepsEverything")
+        : t("db.backup.saidKeep", target.keepDays),
+      ...keysLine(t, database, target, keysExist),
+      ...(restarts ? [t("db.backup.saidRestart", database.name)] : []),
+    ],
+    action: t(on ? "db.backup.change" : "db.backup.setUp"),
+  }
+}
+
+/** What `writeBackups` costs that its lines do not say. */
+export function backupsNotes(t: Translate, database: Database, target: BackupTarget) {
+  const current = ownBackups(database) ? currentTarget(database) : undefined
+  if (!current || !moves(database, target, current)) return []
+  return [
+    t("db.backup.moved", where(database, current)),
+    ...(database.engine === "postgresql" ? [t("db.backup.movedPitr")] : []),
+  ]
+}
+
+/** What `turnOffBackups` does, in the form's words. */
+export function turnOffSummary(t: Translate, database: Database) {
+  const current = currentTarget(database)
+  return {
+    lines: [
+      t("db.backup.saidOff", database.name, where(database, current)),
+      t("db.backup.saidOffKept", backupNames(database.name).secret),
+      ...(restartsForBackups(database.engine)
+        ? [t("db.backup.saidOffRestart", database.name)]
+        : []),
+    ],
+    action: t("db.backup.turnOff"),
+  }
+}
+
+/** What `backUpNow` does, in the form's words. */
+export function backUpNowSummary(t: Translate, database: Database) {
+  const destination = database.backups.store?.destination
+  return {
+    lines: [
+      destination
+        ? t("db.backup.saidNow", database.name, destination)
+        : t("db.backup.planNow", database.name),
+    ],
+    action: t("db.backup.now"),
+  }
+}
+
+/** A name for an on-demand backup: the database's, and the time to the second. */
+export function backupName(database: string, now: Date) {
+  const stamp = now
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d+Z$/, "")
+    .replace("T", "-")
+    .toLowerCase()
+  return `${database}-${stamp}`
+}
+
+/** Engines that take a backup on demand: MOCO only backs up on its schedule. */
+export const canBackUpNow = (engine: Engine) =>
+  engine === "postgresql" || engine === "mongodb" || engine === "mariadb"
+
+/** One backup, now, to where the database's backups go. */
+export function backUpNow(database: Database, now: Date): Change[] {
+  const name = backupName(database.name, now)
+  const store = database.backups.store
+  if (database.engine === "postgresql")
+    return madeFor(database.name, [
+      create({
+        apiVersion: "postgresql.cnpg.io/v1",
+        kind: "Backup",
+        metadata: { name },
+        spec: {
+          cluster: { name: database.name },
+          method: "plugin",
+          pluginConfiguration: { name: PLUGIN },
+        },
+      }),
+    ])
+  if (database.engine === "mariadb") {
+    const { bucket, folder: prefix } = splitDestination(store?.destination)
+    return madeFor(database.name, [
+      create({
+        apiVersion: "k8s.mariadb.com/v1alpha1",
+        kind: "Backup",
+        metadata: { name },
+        spec: {
+          mariaDbRef: { name: database.name },
+          compression: "gzip",
+          storage: mariaStorage(
+            bucket,
+            prefix,
+            store?.endpoint ?? "",
+            store?.region ?? "",
+            store?.secret ?? backupNames(database.name).secret,
+          ),
+          podMetadata: mariaBackupPods(database),
+          podSecurityContext: restrictedPod(999),
+          securityContext: restricted,
+        },
+      }),
+    ])
+  }
+  return madeFor(database.name, [
+    create({
+      apiVersion: "psmdb.percona.com/v1",
+      kind: "PerconaServerMongoDBBackup",
+      metadata: { name },
+      spec: {
+        clusterName: database.name,
+        storageName: store?.name ?? "backups",
+        type: "logical",
+      },
+    }),
+  ])
+}
+
+export const stateHealth: Record<Schemas.DatabaseState, Health> = {
+  ready: "ok",
+  progressing: "progress",
+  degraded: "warn",
+  failed: "fail",
+  paused: "idle",
+  unknown: "idle",
+}
+
+/** Whether backups can be taken now: a target is set and in use. */
+export const backupsOn = (database: Database) => database.backups.store?.inUse === true
+
+/** The newest run, if any. */
+export const lastRun = (database: Database) => database.backups.runs[0]
+
+const SCHEMES: Record<Engine, string> = {
+  postgresql: "postgresql",
+  mongodb: "mongodb",
+  mysql: "mysql",
+  mariadb: "mysql",
+  dragonfly: "redis",
+}
+
+/** The connection string, with a placeholder where the password goes. */
+export function connectionUri(database: Database, password = "PASSWORD") {
+  const c = database.connection
+  const scheme = SCHEMES[database.engine]
+  if (database.engine === "dragonfly")
+    return `${scheme}://:${encodeURIComponent(password)}@${c.host}:${c.port}`
+  const user = c.username ? encodeURIComponent(c.username) : "USER"
+  const options = c.options ? `?${c.options}` : ""
+  return `${scheme}://${user}:${encodeURIComponent(password)}@${c.host}:${c.port}/${c.database ?? ""}${options}`
+}
+
+/** The command that forwards a port on the person's computer to the database. */
+export const connectCommand = (project: string, database: Pick<Database, "name">) =>
+  `zeaburctl connect ${project}/${database.name}`
+
+/** Where the database's own object lives in the objects API: a custom resource of its operator. */
+export function databaseAddress(database: Database): ObjectAddress {
+  const [group = "", version = ""] = database.apiVersion.split("/")
+  return { group, version, resource: database.resource, name: database.name }
+}
+
+/** The tool an export runs in the primary; Dragonfly has none. */
+export const exportTool: Partial<Record<Engine, string>> = {
+  postgresql: "pg_dump",
+  mongodb: "mongodump",
+  mysql: "mysqldump",
+  mariadb: "mariadb-dump",
+}
+
+/** Where the dump downloads from: the server runs the tool through the person's `pods/exec`. */
+export const exportUrl = (project: string, database: Pick<Database, "engine" | "name">) =>
+  `/api/v1/projects/${encodeURIComponent(project)}/databases/${database.engine}/${encodeURIComponent(database.name)}/export`
+
+/** The container the server runs in, in each member. */
+export const serverContainer: Record<Engine, string> = {
+  postgresql: "postgres",
+  mongodb: "mongod",
+  mysql: "mysqld",
+  mariadb: "mariadb",
+  dragonfly: "dragonfly",
+}
+
+/** The member a shell opens in: the primary when known, else the first member. */
+export function shellPod(database: Database): string {
+  switch (database.engine) {
+    case "postgresql":
+      return database.primary ?? `${database.name}-1`
+    case "mongodb":
+      return `${database.name}-rs0-0`
+    case "mysql":
+      return database.primary ?? `moco-${database.name}-0`
+    case "mariadb":
+    case "dragonfly":
+      return database.primary ?? `${database.name}-0`
+  }
+}
+
+// The operator mounts its users' Secret into each member at /etc/users-secret.
+const mongoLogin =
+  'mongosh -u "$(cat /etc/users-secret/MONGODB_DATABASE_ADMIN_USER)" -p "$(cat /etc/users-secret/MONGODB_DATABASE_ADMIN_PASSWORD)" --authenticationDatabase admin'
+
+/** What a terminal runs in the server's container: the engine's own shell, signed in where the
+ * container holds a password. MOCO's does not, so `mysql` asks for `moco-writable`'s. */
+export function shellCommand(database: Database): string[] {
+  switch (database.engine) {
+    case "postgresql":
+      return ["psql", database.connection.database ?? "app"]
+    case "mongodb":
+      return ["bash", "-c", mongoLogin]
+    case "mysql":
+      return ["mysql", "-h", "127.0.0.1", "-u", "moco-writable", "-p"]
+    case "mariadb":
+      return ["bash", "-c", 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" exec mariadb -u root']
+    case "dragonfly":
+      return ["sh", "-c", 'REDISCLI_AUTH="$DFLY_requirepass" exec redis-cli']
+  }
+}
+
+/** Events about the database's object, its members and their volumes. */
+export function eventsOf(events: Event[], database: Database): Event[] {
+  const pods = new Set(database.pods.map((p) => p.name))
+  const claims = new Set(database.claims)
+  return events.filter(({ regarding: r }) => {
+    if (!r?.name) return false
+    if (r.kind === database.kind) return r.name === database.name
+    if (r.kind === "Pod") return pods.has(r.name)
+    return r.kind === "PersistentVolumeClaim" && claims.has(r.name)
+  })
+}
+
+const q = (word: string) => (/^[\w./:=@-]+$/.test(word) ? word : `'${word.replace(/'/g, `'\\''`)}'`)
+
+/** kubectl commands for the tools terminal: the object, and a shell in the database. */
+export function commands(project: string, database: Database) {
+  const ns = q(project)
+  const name = q(database.name)
+  const resource = `${database.resource}.${databaseAddress(database).group}`
+  const describe = `kubectl get ${resource} ${name} -n ${ns} -o wide`
+  const pod = q(shellPod(database))
+  const container = serverContainer[database.engine]
+  const command = shellCommand(database).map(q).join(" ")
+  return { describe, shell: `kubectl exec -it -n ${ns} ${pod} -c ${container} -- ${command}` }
+}
+
+export interface DatabaseShape {
+  members: number
+  /** Unchanged when absent: what the database asks for is no preset. */
+  size?: SizePreset
+  /** Per member, as `5Gi`. */
+  storage: string
+}
+
+const BYTES: Record<string, number> = { Mi: 2 ** 20, Gi: 2 ** 30, Ti: 2 ** 40 }
+
+/** Bytes in a size written as `512Mi`, `5Gi` or `1Ti`; `undefined` for anything else. */
+function storageBytes(size: string): number | undefined {
+  const match = /^(\d+(?:\.\d+)?)(Mi|Gi|Ti)$/.exec(size.trim())
+  return match ? Number(match[1]) * (BYTES[match[2] ?? ""] ?? 0) : undefined
+}
+
+/** A volume can grow, not shrink. */
+export function storageProblem(current: string | null | undefined, next: string) {
+  const bytes = storageBytes(next)
+  if (bytes === undefined || bytes <= 0) return "invalid" as const
+  const now = current ? storageBytes(current) : undefined
+  return now !== undefined && bytes < now ? ("shrink" as const) : undefined
+}
+
+/** Engines whose volumes do not grow from the database's object: the Dragonfly Operator keeps
+ * a StatefulSet's claim template, which Kubernetes does not change. */
+export const storageFixed = (engine: Engine) => engine === "dragonfly"
+
+/** Patch `container` in `containers` by name, adding it when absent. */
+function withContainer(containers: Manifest[] | undefined, name: string, patch: Manifest) {
+  const list = containers ?? []
+  return list.some((c) => c.name === name)
+    ? list.map((c) => (c.name === name ? { ...c, ...patch } : c))
+    : [...list, { name, ...patch }]
+}
+
+interface Reshaping {
+  spec: Manifest
+  members: number
+  resources?: Resources
+  storage: string
+  database: Database
+}
+
+const field = (spec: Manifest, key: string) => (spec[key] as Manifest | undefined) ?? {}
+
+function reshapeMongodb({ spec, members, resources, storage, database }: Reshaping) {
+  const [first = {}, ...rest] = (spec.replsets as Manifest[] | undefined) ?? []
+  const volume = field(first, "volumeSpec")
+  const claim = field(volume, "persistentVolumeClaim")
+  spec.replsets = [
+    {
+      ...first,
+      size: members,
+      ...(resources ? { resources } : {}),
+      volumeSpec: { ...volume, persistentVolumeClaim: withStorage(claim, storage) },
+    },
+    ...rest,
+  ]
+  if (storage !== database.storage) spec.enableVolumeExpansion = true
+  const { replsetSize: _, ...flags } = field(spec, "unsafeFlags")
+  const kept = members < 3 ? { ...flags, replsetSize: true } : flags
+  if (Object.keys(kept).length > 0) spec.unsafeFlags = kept
+  else delete spec.unsafeFlags
+}
+
+function reshapeMysql({ spec, members, resources, storage }: Reshaping) {
+  spec.replicas = members
+  const template = field(spec, "podTemplate")
+  const pod = field(template, "spec")
+  if (resources) {
+    const containers = withContainer(pod.containers as Manifest[] | undefined, "mysqld", {
+      resources,
+    })
+    spec.podTemplate = { ...template, spec: { ...pod, containers } }
+  }
+  const templates = (spec.volumeClaimTemplates as Manifest[] | undefined) ?? []
+  spec.volumeClaimTemplates = templates.map((t) =>
+    field(t, "metadata").name === "mysql-data"
+      ? { ...t, spec: withStorage(field(t, "spec"), storage) }
+      : t,
+  )
+}
+
+const RESHAPE: Record<Engine, (shaping: Reshaping) => void> = {
+  postgresql: ({ spec, members, resources, storage }) => {
+    spec.instances = members
+    if (resources) spec.resources = resources
+    spec.storage = { ...field(spec, "storage"), size: storage }
+  },
+  mongodb: reshapeMongodb,
+  mysql: reshapeMysql,
+  mariadb: ({ spec, members, resources, storage }) => {
+    spec.replicas = members
+    if (members > 1) spec.replication = { ...field(spec, "replication"), enabled: true }
+    if (resources) spec.resources = resources
+    spec.storage = { ...field(spec, "storage"), size: storage }
+  },
+  dragonfly: ({ spec, members, resources }) => {
+    spec.replicas = members
+    if (resources) {
+      spec.resources = resources
+      spec.args = withDragonflyArgs(spec.args, resources.limits)
+    }
+  },
+}
+
+/** The edit that gives the database `shape`: instances, the size of each, and its storage. A
+ * MongoDB volume grows only with `enableVolumeExpansion`, and fewer than three members needs
+ * `unsafeFlags.replsetSize`; a MariaDB of more than one member replicates.
+ * https://docs.percona.com/percona-operator-for-mongodb/scaling.html */
+export const reshapeDatabase = (database: Database, shape: DatabaseShape): Change[] =>
+  editObject(database, (spec) =>
+    RESHAPE[database.engine]({
+      spec,
+      members: shape.members,
+      resources: shape.size
+        ? structuredClone(presetResources[database.engine][shape.size])
+        : undefined,
+      storage: shape.storage.trim(),
+      database,
+    }),
+  )
+
+/** A claim spec asking for `storage`. */
+function withStorage(claim: Manifest, storage: string): Manifest {
+  const asked = (claim.resources as Manifest | undefined) ?? {}
+  return {
+    ...claim,
+    resources: { ...asked, requests: { ...(asked.requests as Manifest | undefined), storage } },
+  }
+}
+
+/** The kinds of what Zeabur makes for a database besides its object: passwords and keys, MOCO's
+ * setup Job, where backups go, their schedules, runs and restores. */
+export const MADE_KINDS = [
+  "core/secrets",
+  "core/serviceaccounts",
+  "batch/jobs",
+  "barmancloud.cnpg.io/objectstores",
+  "postgresql.cnpg.io/scheduledbackups",
+  "postgresql.cnpg.io/backups",
+  "moco.cybozu.com/backuppolicies",
+  "k8s.mariadb.com/backups",
+  "k8s.mariadb.com/restores",
+  "psmdb.percona.com/perconaservermongodbbackups",
+  "psmdb.percona.com/perconaservermongodbrestores",
+]
+
+type ObjectKind = Schemas.ObjectKind
+type Made = { resource: { group: string; version: string; resource: string }; name: string }
+
+/** Whether `value` holds the string `name` anywhere. */
+function mentions(value: unknown, name: string): boolean {
+  if (value === name) return true
+  if (Array.isArray(value)) return value.some((v) => mentions(v, name))
+  if (value && typeof value === "object") return Object.values(value).some((v) => mentions(v, name))
+  return false
+}
+
+/** What deleting `database` also removes: the objects labelled as made for it (`made`), except
+ * those a controller owns, which go with their owner, and a Secret another database still names
+ * (a restored copy reading the original's backup keys), which stays. */
+export function madeObjects(database: Database, made: ObjectKind[], others: Database[]) {
+  const address = databaseAddress(database)
+  const own = (kind: ObjectKind) =>
+    !(kind.group === address.group && kind.resource === address.resource)
+  const readerOf = (kind: ObjectKind, name: string) =>
+    kind.resource === "secrets"
+      ? others.find((d) => d.name !== database.name && mentions(d.object, name))
+      : undefined
+  const gone: Made[] = []
+  const kept: { name: string; by: string }[] = []
+  for (const kind of made.filter(own))
+    for (const item of kind.items.filter((i) => !i.ownerKind)) {
+      const by = readerOf(kind, item.name)
+      if (by) kept.push({ name: item.name, by: by.name })
+      else gone.push({ resource: addressOf(kind), name: item.name })
+    }
+  return { gone, kept }
+}
+
+const addressOf = (kind: ObjectKind) => ({
+  group: kind.group,
+  version: kind.version,
+  resource: kind.resource,
+})
+
+/** Deleting the database: its object, which the operator deletes its members and volumes with,
+ * then what Zeabur made for it (`madeObjects`). Backups already in object storage stay. */
+export function deleteDatabase(database: Database, gone: Made[] = []): Change[] {
+  const { group, version, resource } = databaseAddress(database)
+  return [
+    { op: "delete", resource: { group, version, resource }, name: database.name },
+    ...gone.map((m): Change => ({ op: "delete", resource: m.resource, name: m.name })),
+  ]
+}
