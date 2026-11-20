@@ -20,11 +20,11 @@ import { formatTime } from "@/lib/format"
 import { outcomeHealth } from "@/model/cluster-backups"
 import { restoredName } from "@/model/database-restore"
 import { restoreInPlace, restoreToNewVolume, swapToVolume } from "@/model/volume-backups"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Checkbox } from "@zeabur-oss/design-system/components/checkbox"
-import { Label } from "@zeabur-oss/design-system/components/label"
-import { Select } from "@zeabur-oss/design-system/components/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
 
 type Service = Schemas.Service
 type Mount = Schemas.Mount

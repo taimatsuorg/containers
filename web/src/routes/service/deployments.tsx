@@ -13,24 +13,24 @@ import { Problem } from "@/components/problem"
 import { StatusPill } from "@/components/status"
 import { YamlDiff } from "@/components/yaml"
 import { releasesQuery, serviceTimelineQuery } from "@/api/queries"
-import { Badge } from "@zeabur-oss/design-system/components/badge"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
+} from "@/components/ui/collapsible"
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@zeabur-oss/design-system/components/empty"
-import { Illustration } from "@zeabur-oss/design-system/components/illustration"
-import { SectionHeader } from "@zeabur-oss/design-system/components/section-header"
-import { Timeline, TimelineItem } from "@zeabur-oss/design-system/components/timeline"
-import { Tooltip } from "@zeabur-oss/design-system/components/tooltip"
+} from "@/components/ui/empty"
+import { Illustration } from "@/components/ui/illustration"
+import { SectionHeader } from "@/components/ui/section-header"
+import { Timeline, TimelineItem } from "@/components/ui/timeline"
+import { Tooltip } from "@/components/ui/tooltip"
 import { useSentence, useT } from "@/i18n"
 import { cn } from "@/lib/utils"
 import {

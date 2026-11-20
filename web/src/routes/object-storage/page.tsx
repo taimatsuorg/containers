@@ -51,9 +51,9 @@ import { ObjectStorageSettings } from "@/routes/object-storage/settings"
 import { objectStorageTabs, type ObjectStorageTab } from "@/routes/search"
 import { StoreMenu, StoreShell, useStorePage } from "@/routes/store/shell"
 import { Events, MemberLogs } from "@/routes/service/views"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { PageColumn } from "@zeabur-oss/design-system/components/page-column"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { PageColumn } from "@/components/ui/page-column"
 import {
   SummaryCard,
   SummaryCardAside,
@@ -62,8 +62,8 @@ import {
   SummaryCardMain,
   SummaryCardStatus,
   SummaryCardWord,
-} from "@zeabur-oss/design-system/components/summary-card"
-import { TabsContent } from "@zeabur-oss/design-system/components/tabs"
+} from "@/components/ui/summary-card"
+import { TabsContent } from "@/components/ui/tabs"
 
 const route = getRouteApi("/projects/$project/object-storage/$name")
 

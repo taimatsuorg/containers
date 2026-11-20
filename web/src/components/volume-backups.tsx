@@ -31,9 +31,9 @@ import {
   volumeTargetProblems,
   type VolumeTarget,
 } from "@/model/volume-backups"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Input } from "@zeabur-oss/design-system/components/input"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 type ProjectBackups = Schemas.ProjectBackups
 type Service = Schemas.Service

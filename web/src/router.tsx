@@ -8,7 +8,7 @@ import {
 import {
   pageViewTransition,
   viewTransitionTypes,
-} from "@zeabur-oss/design-system/components/page-transition"
+} from "@/components/ui/page-transition"
 
 import {
   capabilitiesQuery,

@@ -5,14 +5,14 @@ import XIcon from "~icons/ph/x"
 import { namespaceQuery, queryClient } from "@/api/queries"
 import { NamespaceAccess } from "@/components/namespace-access"
 import { usePlanner } from "@/components/plan/planner"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogTitle,
-} from "@zeabur-oss/design-system/components/dialog"
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@zeabur-oss/design-system/components/menu"
+} from "@/components/ui/dialog"
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu"
 import { useT } from "@/i18n"
 import { mayAdopt } from "@/model/project"
 

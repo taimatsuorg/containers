@@ -16,15 +16,15 @@ import { formatAgo } from "@/lib/format"
 import { serverContainer, shellCommand, shellPod } from "@/model/databases"
 import type { Pod } from "@/model/service"
 import { terminalUrl, toolsTerminalUrl } from "@/model/terminal"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Card, CardRow, SectionLabel } from "@zeabur-oss/design-system/components/card"
+import { Button } from "@/components/ui/button"
+import { Card, CardRow, SectionLabel } from "@/components/ui/card"
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
-} from "@zeabur-oss/design-system/components/empty"
-import { Select } from "@zeabur-oss/design-system/components/select"
+} from "@/components/ui/empty"
+import { Select } from "@/components/ui/select"
 
 type ShellTabProps = { tab: Extract<DockTab, { kind: "shell" }>; shown: boolean; focus: number }
 

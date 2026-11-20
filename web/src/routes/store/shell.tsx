@@ -27,16 +27,16 @@ import {
   type ServiceMode,
 } from "@/routes/search"
 import { TabRow } from "@/routes/service/tab-row"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 import {
   Menu,
   MenuContent,
   MenuItem,
   MenuSeparator,
   MenuTrigger,
-} from "@zeabur-oss/design-system/components/menu"
-import { PageColumn } from "@zeabur-oss/design-system/components/page-column"
-import { Tabs, TabsList, TabsTrigger } from "@zeabur-oss/design-system/components/tabs"
+} from "@/components/ui/menu"
+import { PageColumn } from "@/components/ui/page-column"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function StoreShell<Tab extends string>({
   project,

@@ -23,9 +23,9 @@ import {
   saveRequest,
 } from "@/model/s3-destinations"
 import { FormButtons, Section } from "@/routes/cluster/section"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Input } from "@zeabur-oss/design-system/components/input"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 type Request = Schemas.S3DestinationsPlanRequest
 type Planned = { request: Request; title: string; destructive?: boolean }

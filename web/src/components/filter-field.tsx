@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import MagnifyingGlassIcon from "~icons/ph/magnifying-glass"
 
-import { Kbd } from "@zeabur-oss/design-system/components/kbd"
+import { Kbd } from "@/components/ui/kbd"
 import { cn } from "@/lib/utils"
 
 /** A filter above a long collection. With `slash`, `/` focuses it from anywhere on the page. */

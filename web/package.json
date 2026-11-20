@@ -31,15 +31,17 @@
     "@tanstack/react-virtual": "3.14.26",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
-    "@zeabur-oss/design-system": "catalog:",
     "class-variance-authority": "catalog:",
+    "clsx": "2.1.1",
     "cn": "catalog:",
     "fflate": "0.8.3",
     "ignore": "7.0.14",
+    "motion": "14.13.0",
     "react": "catalog:",
     "react-dom": "catalog:",
     "recharts": "catalog:",
     "sonner": "catalog:",
+    "tailwind-merge": "3.7.0",
     "zod": "4.6.7"
   },
   "devDependencies": {

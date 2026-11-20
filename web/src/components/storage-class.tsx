@@ -13,7 +13,7 @@ import {
   type ProjectStorage,
   type StorageClass,
 } from "@/model/storage"
-import { Select } from "@zeabur-oss/design-system/components/select"
+import { Select } from "@/components/ui/select"
 
 const CLASSES = "storageclasses.storage.k8s.io"
 

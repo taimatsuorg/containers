@@ -34,9 +34,9 @@ import {
 } from "@/model/restore-copy"
 import type { Gate } from "@/model/rights"
 import { FormButtons, Section } from "@/routes/cluster/section"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Select } from "@zeabur-oss/design-system/components/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 
 type Request = Schemas.BackupsPlanRequest
 type OnPlan = (request: Request, title: string, action?: string) => void

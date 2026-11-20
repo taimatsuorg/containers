@@ -30,15 +30,15 @@ import {
 } from "@/model/app-templates"
 import { suggestedHost } from "@/model/image-service"
 import { templateRoom } from "@/model/template-room"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Card } from "@zeabur-oss/design-system/components/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
-import { Input } from "@zeabur-oss/design-system/components/input"
+} from "@/components/ui/collapsible"
+import { Input } from "@/components/ui/input"
 
 /** "App template": the catalogue's templates, then the form of the one picked, in one plan. */
 export function TemplateDrawer({ project, onClose }: { project: string; onClose: () => void }) {

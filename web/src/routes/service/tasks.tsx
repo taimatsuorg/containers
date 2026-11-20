@@ -16,11 +16,11 @@ import { serviceLink } from "@/lib/place"
 import type { Service } from "@/model/service"
 import { ContainerField } from "@/routes/service/container-field"
 import { TaskWhen, zoned } from "@/routes/service/task-runs"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Card, CardRow } from "@zeabur-oss/design-system/components/card"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { SectionHeader } from "@zeabur-oss/design-system/components/section-header"
-import { Select } from "@zeabur-oss/design-system/components/select"
+import { Button } from "@/components/ui/button"
+import { Card, CardRow } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { SectionHeader } from "@/components/ui/section-header"
+import { Select } from "@/components/ui/select"
 
 type Concurrency = Schemas.TaskConcurrency
 

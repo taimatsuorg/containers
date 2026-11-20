@@ -10,7 +10,7 @@ import CaretRightIcon from "~icons/ph/caret-right"
 import { isStatus, isUnreachable, type Schemas } from "@/api/client"
 import { capabilitiesQuery, nodesQuery, upgradesQuery } from "@/api/queries"
 import { StatusDot } from "@/components/status"
-import { buttonVariants } from "@zeabur-oss/design-system/components/button"
+import { buttonVariants } from "@/components/ui/button"
 import { useT } from "@/i18n"
 import { useQuantityFormat } from "@/lib/quantity"
 import { groupIssues, isProblem, nodeIssues, type IssueGroup } from "@/model/node-health"
@@ -22,7 +22,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
+} from "@/components/ui/collapsible"
 
 export interface ClusterItem {
   key: string

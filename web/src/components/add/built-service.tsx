@@ -34,12 +34,12 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { Textarea } from "@zeabur-oss/design-system/components/textarea"
-import { Label } from "@zeabur-oss/design-system/components/label"
-import { Select } from "@zeabur-oss/design-system/components/select"
-import { Switch } from "@zeabur-oss/design-system/components/switch"
+} from "@/components/ui/collapsible"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 
 export type BuiltForm = BuiltService & Pick<GitService, "directory" | "dockerfile">
 

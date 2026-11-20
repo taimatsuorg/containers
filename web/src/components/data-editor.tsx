@@ -19,16 +19,16 @@ import { LoadingRows } from "@/components/page"
 import { GateNote, useGates } from "@/components/gate"
 import { usePlanner } from "@/components/plan/planner"
 import { Problem } from "@/components/problem"
-import { Badge } from "@zeabur-oss/design-system/components/badge"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogTitle,
-} from "@zeabur-oss/design-system/components/dialog"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { Textarea } from "@zeabur-oss/design-system/components/textarea"
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { useT } from "@/i18n"
 import { kindName } from "@/i18n/kind-name"
 import { useScrollOnce } from "@/lib/in-view"

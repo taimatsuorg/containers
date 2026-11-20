@@ -3,7 +3,7 @@
 // as typed when it is no amount.
 import { useEffect, useState, type ComponentProps } from "react"
 
-import { Input } from "@zeabur-oss/design-system/components/input"
+import { Input } from "@/components/ui/input"
 import { parseAmount, toKube, type Dimension } from "@/lib/amount"
 import { useT } from "@/i18n"
 import { useQuantityFormat } from "@/lib/quantity"

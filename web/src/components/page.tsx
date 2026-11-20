@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react"
 
-import { Skeleton } from "@zeabur-oss/design-system/components/skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function LoadingRows({
   rows = 3,

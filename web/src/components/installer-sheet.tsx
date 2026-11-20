@@ -1,13 +1,13 @@
 import XIcon from "~icons/ph/x"
 
 import { Command } from "@/components/bits"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogTitle,
-} from "@zeabur-oss/design-system/components/dialog"
+} from "@/components/ui/dialog"
 import { useT } from "@/i18n"
 import type { Needed } from "@/model/installer"
 

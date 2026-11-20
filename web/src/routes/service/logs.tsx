@@ -21,15 +21,15 @@ import { Ago, Histogram } from "@/components/bits"
 import { Problem } from "@/components/problem"
 import { Refused } from "@/components/refused"
 import { StatusDot } from "@/components/status"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@zeabur-oss/design-system/components/popover"
-import { Skeleton } from "@zeabur-oss/design-system/components/skeleton"
-import { Spinner } from "@zeabur-oss/design-system/components/spinner"
-import { Toggle } from "@zeabur-oss/design-system/components/toggle"
+} from "@/components/ui/popover"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Spinner } from "@/components/ui/spinner"
+import { Toggle } from "@/components/ui/toggle"
 import { useI18n, useT } from "@/i18n"
 import { parseAnsi } from "@/lib/ansi"
 import { cn } from "@/lib/utils"
@@ -43,9 +43,9 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@zeabur-oss/design-system/components/empty"
-import { Illustration } from "@zeabur-oss/design-system/components/illustration"
-import { Select } from "@zeabur-oss/design-system/components/select"
+} from "@/components/ui/empty"
+import { Illustration } from "@/components/ui/illustration"
+import { Select } from "@/components/ui/select"
 
 type Severity = "error" | "warn" | "info" | "debug"
 

@@ -46,27 +46,27 @@ import {
   type Invitation,
   type Member,
 } from "@/model/members"
-import { Avatar } from "@zeabur-oss/design-system/components/avatar"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Avatar } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogTitle,
-} from "@zeabur-oss/design-system/components/dialog"
+} from "@/components/ui/dialog"
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@zeabur-oss/design-system/components/empty"
-import { Illustration } from "@zeabur-oss/design-system/components/illustration"
-import { Menu, MenuContent, MenuTrigger } from "@zeabur-oss/design-system/components/menu"
-import { PageColumn } from "@zeabur-oss/design-system/components/page-column"
-import { PageHeader } from "@zeabur-oss/design-system/components/page-header"
-import { Skeleton } from "@zeabur-oss/design-system/components/skeleton"
-import { Tooltip } from "@zeabur-oss/design-system/components/tooltip"
+} from "@/components/ui/empty"
+import { Illustration } from "@/components/ui/illustration"
+import { Menu, MenuContent, MenuTrigger } from "@/components/ui/menu"
+import { PageColumn } from "@/components/ui/page-column"
+import { PageHeader } from "@/components/ui/page-header"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tooltip } from "@/components/ui/tooltip"
 import type { Schemas } from "@/api/client"
 import type { Gate } from "@/model/rights"
 

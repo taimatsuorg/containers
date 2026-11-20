@@ -6,8 +6,8 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
-} from "@zeabur-oss/design-system/components/field"
-import { Input } from "@zeabur-oss/design-system/components/input"
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 
 const firstMessage = (errors: unknown[]) =>
   errors.find((e): e is string => typeof e === "string" && e !== "")

@@ -22,7 +22,7 @@ import {
 } from "@/lib/dock"
 import { usePlace } from "@/lib/place"
 import { isTask, serviceId } from "@/model/service"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 import {
   Dock,
   DockBar,
@@ -32,16 +32,16 @@ import {
   DockTab,
   DockTabList,
   DockTabs,
-} from "@zeabur-oss/design-system/components/dock"
+} from "@/components/ui/dock"
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
-} from "@zeabur-oss/design-system/components/empty"
-import { Kbd } from "@zeabur-oss/design-system/components/kbd"
-import { usePresence } from "@zeabur-oss/design-system/components/presence"
-import { Tooltip } from "@zeabur-oss/design-system/components/tooltip"
+} from "@/components/ui/empty"
+import { Kbd } from "@/components/ui/kbd"
+import { usePresence } from "@/components/ui/presence"
+import { Tooltip } from "@/components/ui/tooltip"
 
 /** Room left above the dock for the page's header. */
 const pageRoom = 160

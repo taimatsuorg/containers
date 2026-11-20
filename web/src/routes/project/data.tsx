@@ -17,9 +17,9 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@zeabur-oss/design-system/components/empty"
-import { Illustration } from "@zeabur-oss/design-system/components/illustration"
-import { PageColumn } from "@zeabur-oss/design-system/components/page-column"
+} from "@/components/ui/empty"
+import { Illustration } from "@/components/ui/illustration"
+import { PageColumn } from "@/components/ui/page-column"
 
 const noEvents: Event[] = []
 

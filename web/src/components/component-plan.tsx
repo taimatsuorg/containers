@@ -14,8 +14,8 @@ import { StatusPill } from "@/components/status"
 import { YamlBlock } from "@/components/yaml"
 import { useT } from "@/i18n"
 import { kindName } from "@/i18n/kind-name"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 
 /** How long the page waits before it asks the server to go on. */
 const POLL_MS = 3_000

@@ -32,11 +32,11 @@ import {
 import type { Gate } from "@/model/rights"
 import { ClusterFrame } from "@/routes/cluster/frame"
 import { FormButtons, Section } from "@/routes/cluster/section"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button, buttonVariants } from "@zeabur-oss/design-system/components/button"
-import { Checkbox } from "@zeabur-oss/design-system/components/checkbox"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { Label } from "@zeabur-oss/design-system/components/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 type Installation = Schemas.GitHubInstallation
 

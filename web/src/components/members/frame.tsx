@@ -3,14 +3,14 @@ import WarningFillIcon from "~icons/ph/warning-fill"
 import XIcon from "~icons/ph/x"
 
 import { useT } from "@/i18n"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogTitle,
-} from "@zeabur-oss/design-system/components/dialog"
+} from "@/components/ui/dialog"
 
 /** The frame every dialog here shares with the plan's: title, body, then the buttons. */
 export function Frame({

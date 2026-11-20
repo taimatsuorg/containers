@@ -11,9 +11,9 @@ import {
   buildLimitsChange,
   type BuildLimit,
 } from "@/model/project"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Card, CardFooter, CardRow, SectionLabel } from "@zeabur-oss/design-system/components/card"
-import { Input } from "@zeabur-oss/design-system/components/input"
+import { Button } from "@/components/ui/button"
+import { Card, CardFooter, CardRow, SectionLabel } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 
 /** The memory and CPU one build of the project may use; empty uses Builder's default. */
 export function BuildLimits({ namespace }: { namespace: Schemas.ProjectNamespace }) {

@@ -40,19 +40,19 @@ import { usePlanner } from "@/components/plan/planner"
 import { Problem } from "@/components/problem"
 import { isRefusal, permission, Refused } from "@/components/refused"
 import { YamlBlock } from "@/components/yaml"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Card } from "@zeabur-oss/design-system/components/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogTitle,
-} from "@zeabur-oss/design-system/components/dialog"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@zeabur-oss/design-system/components/menu"
-import { Select } from "@zeabur-oss/design-system/components/select"
-import { Tooltip } from "@zeabur-oss/design-system/components/tooltip"
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu"
+import { Select } from "@/components/ui/select"
+import { Tooltip } from "@/components/ui/tooltip"
 import { useI18n, useT, type Translate } from "@/i18n"
 import { formatSize } from "@/lib/format"
 import { cn } from "@/lib/utils"

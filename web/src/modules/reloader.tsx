@@ -3,9 +3,9 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
-import { Label } from "@zeabur-oss/design-system/components/label"
-import { Switch } from "@zeabur-oss/design-system/components/switch"
+} from "@/components/ui/collapsible"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { useId } from "react"
 import CaretRightIcon from "~icons/ph/caret-right"
 

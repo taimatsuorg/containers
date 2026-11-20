@@ -25,13 +25,13 @@ import { useT } from "@/i18n"
 import { openAdd, type AddWhat } from "@/lib/adding"
 import { cn } from "@/lib/utils"
 import { Databases, ObjectStorageSection } from "@/routes/project/side"
-import { ActionTile } from "@zeabur-oss/design-system/components/action-tile"
-import { buttonVariants } from "@zeabur-oss/design-system/components/button"
+import { ActionTile } from "@/components/ui/action-tile"
+import { buttonVariants } from "@/components/ui/button"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
+} from "@/components/ui/collapsible"
 import {
   Empty,
   EmptyContent,
@@ -39,9 +39,9 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@zeabur-oss/design-system/components/empty"
-import { Illustration } from "@zeabur-oss/design-system/components/illustration"
-import { PageColumn } from "@zeabur-oss/design-system/components/page-column"
+} from "@/components/ui/empty"
+import { Illustration } from "@/components/ui/illustration"
+import { PageColumn } from "@/components/ui/page-column"
 
 const icons: Partial<Record<AddWhat, ComponentType<SVGProps<SVGSVGElement>>>> = {
   image: PackageIcon,

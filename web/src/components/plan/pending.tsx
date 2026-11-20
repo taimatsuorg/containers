@@ -5,7 +5,7 @@ import { useEffect } from "react"
 import { Frame } from "@/components/members/frame"
 import { LoadingRows } from "@/components/page"
 import { useT } from "@/i18n"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 
 /** The same frame as PlanDialog, with its action disabled, so nothing moves under the pointer. */
 export function PlanDialogPending({ title, onClose }: { title: string; onClose: () => void }) {

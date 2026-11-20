@@ -20,7 +20,7 @@ import {
   SidebarHeader,
   SidebarItem,
   SidebarSection,
-} from "@zeabur-oss/design-system/components/sidebar"
+} from "@/components/ui/sidebar"
 
 type Destination = "/" | "/cluster" | "/projects" | "/members" | "/settings"
 

@@ -21,7 +21,7 @@ import { engineName, engineOperator, engines, type Engine } from "@/model/databa
 import { gitNeeds } from "@/model/git-service"
 import { needed, type Needed } from "@/model/installer"
 import type { Gate } from "@/model/rights"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 import {
   Menu,
   MenuContent,
@@ -29,7 +29,7 @@ import {
   MenuLabel,
   MenuSeparator,
   MenuTrigger,
-} from "@zeabur-oss/design-system/components/menu"
+} from "@/components/ui/menu"
 
 export interface AddChoices {
   image: boolean

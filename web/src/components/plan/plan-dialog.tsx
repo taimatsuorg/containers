@@ -30,21 +30,21 @@ import { ProjectDeletion } from "@/components/plan/project-deletion"
 import { changedSince, type Reviewed } from "@/components/plan/replan"
 import { Problem } from "@/components/problem"
 import { StatusDot } from "@/components/status"
-import { Alert, AlertDescription, AlertTitle } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
+} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogTitle,
-} from "@zeabur-oss/design-system/components/dialog"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { Label } from "@zeabur-oss/design-system/components/label"
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { YamlDiff } from "@/components/yaml"
 import { useI18n, useT, writeSentence, type Translate } from "@/i18n"
 import { kindName } from "@/i18n/kind-name"

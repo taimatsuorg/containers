@@ -19,8 +19,8 @@ import { useSecondsLeft } from "@/components/plan/expiry"
 import { SealedFooter } from "@/components/plan/sealed-footer"
 import { Problem } from "@/components/problem"
 import { useT } from "@/i18n"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@zeabur-oss/design-system/components/menu"
+import { Button } from "@/components/ui/button"
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu"
 
 type NodeView = Schemas.NodeView
 type NodeAction = Schemas.NodeAction

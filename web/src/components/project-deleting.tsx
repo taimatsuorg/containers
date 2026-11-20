@@ -9,13 +9,13 @@ import type { Schemas } from "@/api/client"
 import { namespaceQuery } from "@/api/queries"
 import { usePlanner } from "@/components/plan/planner"
 import { YamlBlock } from "@/components/yaml"
-import { Alert, AlertDescription, AlertTitle } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
+} from "@/components/ui/collapsible"
 import { useI18n, useT, type Translate } from "@/i18n"
 import { formatAgo } from "@/lib/format"
 import { useProjectSummary } from "@/lib/project-name"

@@ -7,7 +7,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
+} from "@/components/ui/collapsible"
 import { useT } from "@/i18n"
 import { en } from "@/i18n/en"
 import { cn } from "@/lib/utils"

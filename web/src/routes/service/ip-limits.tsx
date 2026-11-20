@@ -17,8 +17,8 @@ import {
   type Verdict,
 } from "@/model/ip-limits"
 import type { Service } from "@/model/service"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { SectionHeader } from "@zeabur-oss/design-system/components/section-header"
+import { Button } from "@/components/ui/button"
+import { SectionHeader } from "@/components/ui/section-header"
 
 const IpLimitsDrawer = lazy(() => import("@/routes/service/ip-limits-drawer"))
 

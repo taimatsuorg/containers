@@ -8,8 +8,8 @@ import { StatusPill } from "@/components/status"
 import { useT } from "@/i18n"
 import { solverLabel } from "@/model/cluster-issuers"
 import { Section } from "@/routes/cluster/section"
-import { Badge } from "@zeabur-oss/design-system/components/badge"
-import { buttonVariants } from "@zeabur-oss/design-system/components/button"
+import { Badge } from "@/components/ui/badge"
+import { buttonVariants } from "@/components/ui/button"
 
 type Data = Schemas.ClusterIssuers
 

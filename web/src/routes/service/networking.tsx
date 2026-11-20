@@ -37,13 +37,13 @@ import { usePlanner, type PlanAsk } from "@/components/plan/planner"
 import { refusedAmong, RefusedKinds } from "@/components/refused"
 import { FilterField } from "@/components/filter-field"
 import { FormField } from "@/components/form-field"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Checkbox } from "@zeabur-oss/design-system/components/checkbox"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
+} from "@/components/ui/collapsible"
 import {
   Empty,
   EmptyContent,
@@ -51,12 +51,12 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@zeabur-oss/design-system/components/empty"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { Label } from "@zeabur-oss/design-system/components/label"
-import { Select } from "@zeabur-oss/design-system/components/select"
-import { SectionHeader } from "@zeabur-oss/design-system/components/section-header"
-import { Tooltip } from "@zeabur-oss/design-system/components/tooltip"
+} from "@/components/ui/empty"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
+import { SectionHeader } from "@/components/ui/section-header"
+import { Tooltip } from "@/components/ui/tooltip"
 import { useT } from "@/i18n"
 import { createdKey, entrance } from "@/lib/created"
 import { cn } from "@/lib/utils"

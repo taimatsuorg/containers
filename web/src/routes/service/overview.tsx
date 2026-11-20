@@ -22,14 +22,14 @@ import { ServiceIcon } from "@/components/service-icon"
 import { useBrowserChecks } from "@/components/browser-check"
 import { plainReason, StatusDot, useStatusFacts } from "@/components/status"
 import { ReachLine, reachSetup, useHeadline } from "@/components/verdict"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Container } from "@zeabur-oss/design-system/components/container"
-import { Meter } from "@zeabur-oss/design-system/components/meter"
+import { Button } from "@/components/ui/button"
+import { Container } from "@/components/ui/container"
+import { Meter } from "@/components/ui/meter"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@zeabur-oss/design-system/components/popover"
+} from "@/components/ui/popover"
 import {
   SummaryCard,
   SummaryCardCount,
@@ -39,10 +39,10 @@ import {
   SummaryCardSince,
   SummaryCardStatus,
   SummaryCardWord,
-} from "@zeabur-oss/design-system/components/summary-card"
-import { SwapText } from "@zeabur-oss/design-system/components/swap-text"
-import { TermDetail } from "@zeabur-oss/design-system/components/term"
-import { Tooltip } from "@zeabur-oss/design-system/components/tooltip"
+} from "@/components/ui/summary-card"
+import { SwapText } from "@/components/ui/swap-text"
+import { TermDetail } from "@/components/ui/term"
+import { Tooltip } from "@/components/ui/tooltip"
 import { useI18n, useSentence, useT, type Translate } from "@/i18n"
 import { LoadingRows } from "@/components/page"
 import { Problem } from "@/components/problem"

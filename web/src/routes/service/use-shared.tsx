@@ -10,9 +10,9 @@ import { useT, type Translate } from "@/i18n"
 import { secretData } from "@/lib/secret-data"
 import type { Service } from "@/model/service"
 import { ContainerField } from "@/routes/service/container-field"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { RadioGroup, RadioOption } from "@zeabur-oss/design-system/components/radio"
-import { Select } from "@zeabur-oss/design-system/components/select"
+import { Input } from "@/components/ui/input"
+import { RadioGroup, RadioOption } from "@/components/ui/radio"
+import { Select } from "@/components/ui/select"
 
 type Kind = "ConfigMap" | "Secret"
 const VARIABLE = /^[A-Za-z_][A-Za-z0-9_]*$/

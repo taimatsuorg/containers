@@ -24,12 +24,12 @@ import {
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
-} from "@zeabur-oss/design-system/components/empty"
-import { Illustration } from "@zeabur-oss/design-system/components/illustration"
-import { Kbd } from "@zeabur-oss/design-system/components/kbd"
-import { Skeleton } from "@zeabur-oss/design-system/components/skeleton"
-import { Tabs, TabsList, TabsTrigger } from "@zeabur-oss/design-system/components/tabs"
-import { Tooltip } from "@zeabur-oss/design-system/components/tooltip"
+} from "@/components/ui/empty"
+import { Illustration } from "@/components/ui/illustration"
+import { Kbd } from "@/components/ui/kbd"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip } from "@/components/ui/tooltip"
 
 type ProjectItem = Schemas.ProjectSummary
 

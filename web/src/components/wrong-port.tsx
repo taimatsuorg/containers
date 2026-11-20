@@ -6,7 +6,7 @@ import { usePlanner, type PlanAsk } from "@/components/plan/planner"
 import { useT, type Translate } from "@/i18n"
 import type { Service } from "@/model/service"
 import { portChange, wrongPort, type PortOffer, type WrongPort } from "@/model/wrong-port"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 
 /** What the card says in place of the failing traffic check. */
 export function wrongPortWords(t: Translate, wrong: WrongPort) {

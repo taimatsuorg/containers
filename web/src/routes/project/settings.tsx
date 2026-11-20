@@ -25,18 +25,18 @@ import { NetworkSettings } from "@/routes/project/network-settings"
 import { projectCoverage } from "@/model/cluster-backups"
 import { DISPLAY_NAME_MAX, mayChange, projectIcons, type ProjectIconName } from "@/model/project"
 import type { Service } from "@/model/service"
-import { Button, buttonVariants } from "@zeabur-oss/design-system/components/button"
-import { Card, CardFooter, CardRow, SectionLabel } from "@zeabur-oss/design-system/components/card"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { PageHeader } from "@zeabur-oss/design-system/components/page-header"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Card, CardFooter, CardRow, SectionLabel } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { PageHeader } from "@/components/ui/page-header"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@zeabur-oss/design-system/components/popover"
-import { Textarea } from "@zeabur-oss/design-system/components/textarea"
-import { ToggleGroup, ToggleGroupItem } from "@zeabur-oss/design-system/components/toggle-group"
-import { PageColumn } from "@zeabur-oss/design-system/components/page-column"
+} from "@/components/ui/popover"
+import { Textarea } from "@/components/ui/textarea"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { PageColumn } from "@/components/ui/page-column"
 
 const SharedVariables = lazy(() =>
   import("@/routes/project/shared-variables").then((m) => ({ default: m.SharedVariablesSection })),

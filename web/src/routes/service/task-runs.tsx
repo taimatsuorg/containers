@@ -19,10 +19,10 @@ import { StatusDot } from "@/components/status"
 import { useT } from "@/i18n"
 import { podLogsLink } from "@/lib/place"
 import type { Service } from "@/model/service"
-import { Badge } from "@zeabur-oss/design-system/components/badge"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Container } from "@zeabur-oss/design-system/components/container"
-import { Tooltip } from "@zeabur-oss/design-system/components/tooltip"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Container } from "@/components/ui/container"
+import { Tooltip } from "@/components/ui/tooltip"
 
 type Run = Schemas.TaskRun
 

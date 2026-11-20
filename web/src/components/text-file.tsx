@@ -1,8 +1,8 @@
 import { useRef, type ChangeEvent } from "react"
 
 import { FormField } from "@/components/form-field"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Textarea } from "@zeabur-oss/design-system/components/textarea"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 
 /** A text field that can also take the text of a local file. */
 export function TextFile({

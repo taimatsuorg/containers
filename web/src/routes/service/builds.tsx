@@ -21,17 +21,17 @@ import { usePlanner } from "@/components/plan/planner"
 import { FormField } from "@/components/form-field"
 import { Problem } from "@/components/problem"
 import { UploadFolderDrawer, UploadProgress } from "@/components/upload-folder"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { CopyInput } from "@zeabur-oss/design-system/components/copy-input"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { CopyInput } from "@/components/ui/copy-input"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@zeabur-oss/design-system/components/collapsible"
-import { Empty, EmptyDescription, EmptyHeader } from "@zeabur-oss/design-system/components/empty"
-import { SectionHeader } from "@zeabur-oss/design-system/components/section-header"
-import { Skeleton } from "@zeabur-oss/design-system/components/skeleton"
+} from "@/components/ui/collapsible"
+import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty"
+import { SectionHeader } from "@/components/ui/section-header"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   SummaryCard,
   SummaryCardActions,
@@ -41,10 +41,10 @@ import {
   SummaryCardSince,
   SummaryCardStatus,
   SummaryCardWord,
-} from "@zeabur-oss/design-system/components/summary-card"
-import { Switch } from "@zeabur-oss/design-system/components/switch"
-import { Timeline, TimelineItem } from "@zeabur-oss/design-system/components/timeline"
-import { Tooltip } from "@zeabur-oss/design-system/components/tooltip"
+} from "@/components/ui/summary-card"
+import { Switch } from "@/components/ui/switch"
+import { Timeline, TimelineItem } from "@/components/ui/timeline"
+import { Tooltip } from "@/components/ui/tooltip"
 import { useI18n, useT } from "@/i18n"
 import { formatAgo } from "@/lib/format"
 import {

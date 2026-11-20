@@ -32,11 +32,11 @@ import {
 } from "@/model/api-tokens"
 import { chosenOf, grantsOf } from "@/model/members"
 import type { Gate } from "@/model/rights"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { CopyInput } from "@zeabur-oss/design-system/components/copy-input"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { Menu, MenuContent, MenuTrigger } from "@zeabur-oss/design-system/components/menu"
-import { Select } from "@zeabur-oss/design-system/components/select"
+import { Button } from "@/components/ui/button"
+import { CopyInput } from "@/components/ui/copy-input"
+import { Input } from "@/components/ui/input"
+import { Menu, MenuContent, MenuTrigger } from "@/components/ui/menu"
+import { Select } from "@/components/ui/select"
 
 type Token = Schemas.ApiTokenView
 type Issued = Schemas.IssuedTokenView

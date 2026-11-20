@@ -43,10 +43,10 @@ import {
   type Event,
   type Field,
 } from "@/model/notifications"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button, buttonVariants } from "@zeabur-oss/design-system/components/button"
-import { Card, CardRow } from "@zeabur-oss/design-system/components/card"
-import { Checkbox } from "@zeabur-oss/design-system/components/checkbox"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Card, CardRow } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Empty,
   EmptyContent,
@@ -54,12 +54,12 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@zeabur-oss/design-system/components/empty"
-import { Illustration } from "@zeabur-oss/design-system/components/illustration"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { Label } from "@zeabur-oss/design-system/components/label"
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@zeabur-oss/design-system/components/menu"
-import { Select } from "@zeabur-oss/design-system/components/select"
+} from "@/components/ui/empty"
+import { Illustration } from "@/components/ui/illustration"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu"
+import { Select } from "@/components/ui/select"
 
 type Data = Schemas.Notifications
 type Channel = Schemas.AlertmanagerChannel

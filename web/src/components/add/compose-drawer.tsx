@@ -38,12 +38,12 @@ import {
   serviceNameProblem,
   suggestedHost,
 } from "@/model/image-service"
-import { Alert, AlertDescription } from "@zeabur-oss/design-system/components/alert"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Card, CardRow, SectionLabel } from "@zeabur-oss/design-system/components/card"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { Label } from "@zeabur-oss/design-system/components/label"
-import { Switch } from "@zeabur-oss/design-system/components/switch"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Card, CardRow, SectionLabel } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 
 type Finding = ComposeService["findings"][number]
 type Offer = ReturnType<typeof managedOffer>

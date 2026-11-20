@@ -6,7 +6,7 @@ import type { Schemas } from "@/api/client"
 import { updateQuery, zeaburQuery } from "@/api/queries"
 import { Command } from "@/components/bits"
 import { StatusPill } from "@/components/status"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogBody,
@@ -15,7 +15,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@zeabur-oss/design-system/components/dialog"
+} from "@/components/ui/dialog"
 import { useI18n, useT } from "@/i18n"
 import { docsUrl } from "@/lib/docs"
 import { type Newer } from "@/model/update-check"

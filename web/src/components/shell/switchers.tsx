@@ -12,7 +12,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@zeabur-oss/design-system/components/popover"
+} from "@/components/ui/popover"
 import { useT } from "@/i18n"
 import { cn } from "@/lib/utils"
 import { projectTitle } from "@/model/project"

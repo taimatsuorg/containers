@@ -13,12 +13,12 @@ import { usePlanStep } from "@/components/plan/planner"
 import { useT } from "@/i18n"
 import { serviceLink } from "@/lib/place"
 import { parseDotenv } from "@/model/env-edit"
-import { Badge } from "@zeabur-oss/design-system/components/badge"
-import { Button } from "@zeabur-oss/design-system/components/button"
-import { Card, CardRow, SectionLabel } from "@zeabur-oss/design-system/components/card"
-import { Input } from "@zeabur-oss/design-system/components/input"
-import { RadioGroup, RadioOption } from "@zeabur-oss/design-system/components/radio"
-import { Textarea } from "@zeabur-oss/design-system/components/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardRow, SectionLabel } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { RadioGroup, RadioOption } from "@/components/ui/radio"
+import { Textarea } from "@/components/ui/textarea"
 
 const DataEditor = lazy(() =>
   import("@/components/data-editor").then((m) => ({ default: m.DataEditor })),

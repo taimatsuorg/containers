@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 
 import { StatusDot } from "@/components/status"
-import { Button } from "@zeabur-oss/design-system/components/button"
+import { Button } from "@/components/ui/button"
 import { useT } from "@/i18n"
 import { useSeen } from "@/lib/in-view"
 import { store } from "@/lib/stores"
