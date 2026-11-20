@@ -18,19 +18,8 @@ const skeletonVariants = cva("animate-pulse bg-foreground/6 motion-reduce:animat
  * Placeholder for content that is still loading. Size it with `className` (`h-4 w-32`,
  * `size-8`). The pulse stops under reduced motion.
  */
-function Skeleton({
-  className,
-  shape = "default",
-  variant,
-  delay: _delay,
-  ...props
-}: React.ComponentProps<"div"> &
-  VariantProps<typeof skeletonVariants> & {
-    variant?: "default" | "circle" | "card" | string
-    delay?: number | string
-  }) {
-  const resolvedShape = variant === "circle" || variant === "card" ? variant : shape
-  return <div data-slot="skeleton" aria-hidden className={cn(skeletonVariants({ shape: resolvedShape }), className)} {...props} />
+function Skeleton({ className, shape = "default", ...props }: React.ComponentProps<"div"> & VariantProps<typeof skeletonVariants>) {
+  return <div data-slot="skeleton" aria-hidden className={cn(skeletonVariants({ shape }), className)} {...props} />
 }
 
 export { Skeleton, skeletonVariants }

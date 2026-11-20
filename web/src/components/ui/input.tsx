@@ -28,10 +28,9 @@ type InputProps = Omit<React.ComponentProps<"input">, "size"> &
   VariantProps<typeof inputVariants> & {
     /** The native `size` attribute (visible width in characters). */
     htmlSize?: number
-    mono?: boolean
   }
 
-function Input({ className, type, size, htmlSize, mono, ...props }: InputProps) {
+function Input({ className, type, size, htmlSize, ...props }: InputProps) {
   const resolved = useControlSize(size)
   return (
     <InputPrimitive
@@ -39,7 +38,7 @@ function Input({ className, type, size, htmlSize, mono, ...props }: InputProps) 
       size={htmlSize}
       data-slot="input"
       data-size={resolved}
-      className={cn(inputVariants({ size: resolved }), mono && "font-mono", className)}
+      className={cn(inputVariants({ size: resolved }), className)}
       {...props}
     />
   )

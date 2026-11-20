@@ -22,7 +22,6 @@ const cardVariants = cva(
     variants: {
       variant: {
         default: "bg-card shadow-raised",
-        list: "bg-card shadow-raised divide-y divide-border gap-0 py-0",
         outline: "bg-transparent shadow-[inset_0_0_0_1px_var(--border)]",
         ghost: "bg-transparent",
         inset: "frame-2xl frame-inset-1 gap-0 rounded-2xl bg-muted p-1 shadow-raised dark:bg-background",
@@ -41,12 +40,9 @@ const cardVariants = cva(
   }
 )
 
-type CardProps = useRender.ComponentProps<"div"> &
-  VariantProps<typeof cardVariants> & {
-    tone?: string
-  }
+type CardProps = useRender.ComponentProps<"div"> & VariantProps<typeof cardVariants>
 
-function Card({ className, size = "default", variant = "default", interactive = false, tone: _tone, render, ...props }: CardProps) {
+function Card({ className, size = "default", variant = "default", interactive = false, render, ...props }: CardProps) {
   return useRender({
     defaultTagName: "div",
     render,
@@ -63,12 +59,7 @@ function Card({ className, size = "default", variant = "default", interactive = 
 }
 
 /** The raised inner surface of an inset Card. */
-function CardPanel({
-  className,
-  tone: _tone,
-  variant: _variant,
-  ...props
-}: React.ComponentProps<"div"> & { tone?: string; variant?: string }) {
+function CardPanel({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-panel"
@@ -81,18 +72,7 @@ function CardPanel({
   )
 }
 
-function CardHeader({
-  className,
-  title,
-  titleAction,
-  variant: _variant,
-  children,
-  ...props
-}: Omit<React.ComponentProps<"div">, "title"> & {
-  title?: React.ReactNode
-  titleAction?: React.ReactNode
-  variant?: string
-}) {
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-header"
@@ -101,15 +81,7 @@ function CardHeader({
         className
       )}
       {...props}
-    >
-      {title ? (
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle>{title}</CardTitle>
-          {titleAction}
-        </div>
-      ) : null}
-      {children}
-    </div>
+    />
   )
 }
 
@@ -146,11 +118,9 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
 type CardContentProps = React.ComponentProps<"div"> & {
   /** Turns prose styles back on for this content inside a `typeset` container (or names a preset when used on its own). */
   typeset?: boolean | "docs" | "reading" | "chat"
-  tone?: string
-  variant?: string
 }
 
-function CardContent({ className, typeset, tone: _tone, variant: _variant, ...props }: CardContentProps) {
+function CardContent({ className, typeset, ...props }: CardContentProps) {
   return (
     <div
       data-slot="card-content"
@@ -171,44 +141,5 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function CardRow({
-  className,
-  label,
-  description,
-  align: _align,
-  children,
-  ...props
-}: React.ComponentProps<"div"> & {
-  label?: React.ReactNode
-  description?: React.ReactNode
-  align?: string
-}) {
-  return (
-    <div
-      data-slot="card-row"
-      className={cn("flex items-center justify-between gap-3 px-4 py-3", className)}
-      {...props}
-    >
-      {label !== undefined || description !== undefined ? (
-        <div className="min-w-0 space-y-0.5">
-          {label ? <div className="text-sm font-medium text-foreground">{label}</div> : null}
-          {description ? <div className="text-xs text-muted-foreground">{description}</div> : null}
-        </div>
-      ) : null}
-      {children}
-    </div>
-  )
-}
-
-function SectionLabel({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="section-label"
-      className={cn("text-xs font-medium tracking-wide text-muted-foreground uppercase", className)}
-      {...props}
-    />
-  )
-}
-
-export { Card, CardPanel, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter, CardRow, SectionLabel, cardVariants }
+export { Card, CardPanel, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter, cardVariants }
 export type { CardProps, CardContentProps }

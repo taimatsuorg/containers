@@ -17,18 +17,11 @@ const kbdVariants = cva(
   }
 )
 
-type KbdProps = React.ComponentProps<"kbd"> &
-  VariantProps<typeof kbdVariants> & {
-    keys?: string
-  }
+type KbdProps = React.ComponentProps<"kbd"> & VariantProps<typeof kbdVariants>
 
 /** One key. Inside a tooltip or a primary button it picks up a muted fill instead of a chip. */
-function Kbd({ className, size = "default", keys, children, ...props }: KbdProps) {
-  return (
-    <kbd data-slot="kbd" data-size={size} dir="ltr" className={cn(kbdVariants({ size }), className)} {...props}>
-      {children ?? keys}
-    </kbd>
-  )
+function Kbd({ className, size = "default", ...props }: KbdProps) {
+  return <kbd data-slot="kbd" data-size={size} dir="ltr" className={cn(kbdVariants({ size }), className)} {...props} />
 }
 
 /** Keys pressed together or in sequence, spaced evenly. */

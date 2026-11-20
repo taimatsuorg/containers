@@ -6,11 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
-function Tabs({
-  className,
-  variant: _variant,
-  ...props
-}: TabsPrimitive.Root.Props & { variant?: string }) {
+function Tabs({ className, ...props }: TabsPrimitive.Root.Props) {
   return <TabsPrimitive.Root data-slot="tabs" className={cn("flex flex-col gap-3 data-[orientation=vertical]:flex-row", className)} {...props} />
 }
 
@@ -31,7 +27,6 @@ const tabsListVariants = cva(
         underline:
           "gap-1 shadow-[inset_0_-1px_0_var(--border)] data-[orientation=vertical]:gap-0.5 data-[orientation=vertical]:shadow-[inset_1px_0_0_var(--border)]",
         ghost: "gap-0.5",
-        inline: "gap-1 border-b border-border",
       },
       size: { xs: "", sm: "", default: "", lg: "" },
     },
@@ -47,7 +42,7 @@ const tabsTabVariants = cva(
   "inline-flex shrink-0 cursor-pointer items-center justify-center data-[orientation=vertical]:justify-start gap-1.5 font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-active:text-foreground data-disabled:pointer-events-none data-disabled:opacity-64 data-icon-only:aspect-square data-icon-only:px-0 [&_svg]:size-3.5 [&_svg]:shrink-0",
   {
     variants: {
-      variant: { default: "", underline: "rounded-md focus-visible:ring-inset", ghost: "rounded-inner focus-visible:ring-inset", inline: "rounded-md focus-visible:ring-inset" },
+      variant: { default: "", underline: "rounded-md focus-visible:ring-inset", ghost: "rounded-inner focus-visible:ring-inset" },
       size: {
         xs: "px-2 text-ui-xs [&_svg]:size-3",
         sm: "px-2.5 text-ui-sm",
@@ -81,7 +76,6 @@ const TabsListContext = React.createContext<{ size: TabsSize; variant: TabsVaria
 
 const indicatorClass: Record<TabsVariant, string> = {
   ghost: "h-(--active-tab-height) w-(--active-tab-width) translate-x-(--active-tab-left) translate-y-(--active-tab-top) bg-secondary",
-  inline: "bottom-0 h-0.5 w-(--active-tab-width) translate-x-(--active-tab-left) bg-primary",
   default:
     "h-(--active-tab-height) w-(--active-tab-width) translate-x-(--active-tab-left) translate-y-(--active-tab-top) bg-background shadow-raised dark:bg-fill-active",
   underline:
@@ -161,6 +155,6 @@ function TabsPanel({ className, typeset, ...props }: TabsPanelProps) {
   )
 }
 
-export { Tabs, TabsList, TabsTab, TabsTab as TabsTrigger, TabsPanel, TabsPanel as TabsContent, tabsListVariants, tabsTabVariants }
+export { Tabs, TabsList, TabsTab, TabsPanel, tabsListVariants, tabsTabVariants }
 export type { TabsPanelProps }
 export type { TabsSize, TabsVariant }

@@ -10,9 +10,13 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/go-connections/nat"
 )
 
 // Client wraps the local Docker Engine API for Containers.
@@ -55,20 +59,34 @@ type ProjectGroup struct {
 	Containers []types.Container
 }
 
+// ListContainers returns all containers sorted by project then name.
+func (c *Client) ListContainers(ctx context.Context) ([]types.Container, error) {
+	containers, err := c.raw.ContainerList(ctx, container.ListOptions{All: true})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(containers, func(i, j int) bool {
+		pi := ContainerProject(containers[i])
+		pj := ContainerProject(containers[j])
+		if pi != pj {
+			return pi < pj
+		}
+		return ContainerName(containers[i]) < ContainerName(containers[j])
+	})
+	return containers, nil
+}
+
 // ListProjects lists all local containers and groups them by com.docker.compose.project.
 // Containers without a compose project label are placed in "standalone".
 func (c *Client) ListProjects(ctx context.Context) ([]ProjectGroup, error) {
-	containers, err := c.raw.ContainerList(ctx, container.ListOptions{All: true})
+	containers, err := c.ListContainers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	grouped := make(map[string][]types.Container)
 	for _, ctr := range containers {
-		proj := ctr.Labels["com.docker.compose.project"]
-		if proj == "" {
-			proj = "standalone"
-		}
+		proj := ContainerProject(ctr)
 		grouped[proj] = append(grouped[proj], ctr)
 	}
 
@@ -101,6 +119,84 @@ func (c *Client) GetProject(ctx context.Context, name string) (*ProjectGroup, er
 		}
 	}
 	return nil, nil
+}
+
+// CreateContainerRequest defines parameters for creating and starting a container.
+type CreateContainerRequest struct {
+	Name          string   `json:"name"`
+	Image         string   `json:"image"`
+	Project       string   `json:"project"`
+	Ports         []string `json:"ports"`
+	Env           []string `json:"env"`
+	RestartPolicy string   `json:"restartPolicy"`
+}
+
+// CreateAndStartContainer pulls the image if absent, creates the container, and starts it.
+func (c *Client) CreateAndStartContainer(ctx context.Context, req CreateContainerRequest) (string, error) {
+	if _, _, err := c.raw.ImageInspectWithRaw(ctx, req.Image); err != nil {
+		rc, pullErr := c.raw.ImagePull(ctx, req.Image, image.PullOptions{})
+		if pullErr != nil {
+			return "", pullErr
+		}
+		_, _ = io.Copy(io.Discard, rc)
+		_ = rc.Close()
+	}
+
+	exposedPorts := nat.PortSet{}
+	portBindings := nat.PortMap{}
+	for _, spec := range req.Ports {
+		spec = strings.TrimSpace(spec)
+		if spec == "" {
+			continue
+		}
+		mappings, err := nat.ParsePortSpec(spec)
+		if err != nil {
+			return "", err
+		}
+		for _, m := range mappings {
+			exposedPorts[m.Port] = struct{}{}
+			portBindings[m.Port] = append(portBindings[m.Port], m.Binding)
+		}
+	}
+
+	var labels map[string]string
+	if strings.TrimSpace(req.Project) != "" {
+		labels = map[string]string{
+			"com.docker.compose.project": strings.TrimSpace(req.Project),
+		}
+	}
+
+	restartPolicy := container.RestartPolicy{}
+	switch strings.TrimSpace(req.RestartPolicy) {
+	case "always":
+		restartPolicy.Name = container.RestartPolicyAlways
+	case "unless-stopped":
+		restartPolicy.Name = container.RestartPolicyUnlessStopped
+	case "on-failure":
+		restartPolicy.Name = container.RestartPolicyOnFailure
+	default:
+		restartPolicy.Name = container.RestartPolicyDisabled
+	}
+
+	cfg := &container.Config{
+		Image:        req.Image,
+		Env:          req.Env,
+		ExposedPorts: exposedPorts,
+		Labels:       labels,
+	}
+	hostCfg := &container.HostConfig{
+		PortBindings:  portBindings,
+		RestartPolicy: restartPolicy,
+	}
+
+	resp, err := c.raw.ContainerCreate(ctx, cfg, hostCfg, nil, nil, strings.TrimSpace(req.Name))
+	if err != nil {
+		return "", err
+	}
+	if err := c.raw.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		return "", err
+	}
+	return resp.ID, nil
 }
 
 // InspectContainer returns detailed metadata for a single container.
@@ -238,11 +334,55 @@ func (c *Client) RemoveContainer(ctx context.Context, idOrName string, force boo
 	return c.raw.ContainerRemove(ctx, idOrName, container.RemoveOptions{Force: force})
 }
 
+// ListImages lists local Docker images.
+func (c *Client) ListImages(ctx context.Context) ([]image.Summary, error) {
+	items, err := c.raw.ImageList(ctx, image.ListOptions{All: false})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Created > items[j].Created
+	})
+	return items, nil
+}
+
+// RemoveImage deletes a local Docker image.
+func (c *Client) RemoveImage(ctx context.Context, id string, force bool) error {
+	_, err := c.raw.ImageRemove(ctx, id, image.RemoveOptions{Force: force, PruneChildren: true})
+	return err
+}
+
+// ListVolumes lists local Docker volumes.
+func (c *Client) ListVolumes(ctx context.Context) ([]*volume.Volume, error) {
+	resp, err := c.raw.VolumeList(ctx, volume.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	items := resp.Volumes
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Name < items[j].Name
+	})
+	return items, nil
+}
+
+// ListNetworks lists local Docker networks.
+func (c *Client) ListNetworks(ctx context.Context) ([]network.Summary, error) {
+	items, err := c.raw.NetworkList(ctx, network.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Name < items[j].Name
+	})
+	return items, nil
+}
+
 // ContainerUsage holds instantaneous CPU and memory metrics for a container.
 type ContainerUsage struct {
 	Name        string
 	CPUPercent  float64
 	MemoryBytes uint64
+	MemoryLimit uint64
 }
 
 // ContainerStatsOneShot fetches a single stats snapshot for a container.
@@ -276,7 +416,16 @@ func (c *Client) ContainerStatsOneShot(ctx context.Context, idOrName string) (*C
 		Name:        idOrName,
 		CPUPercent:  cpuPercent,
 		MemoryBytes: stats.MemoryStats.Usage,
+		MemoryLimit: stats.MemoryStats.Limit,
 	}, nil
+}
+
+// ContainerProject returns the compose project name for a container or "standalone".
+func ContainerProject(ctr types.Container) string {
+	if p := ctr.Labels["com.docker.compose.project"]; p != "" {
+		return p
+	}
+	return "standalone"
 }
 
 // ContainerName returns the primary human-readable name of a container without leading '/'.

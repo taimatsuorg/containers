@@ -16,10 +16,8 @@ function DialogContent({
   className,
   children,
   showClose = true,
-  variant: _variant,
-  position: _position,
   ...props
-}: DialogPrimitive.Popup.Props & { showClose?: boolean; variant?: string; position?: string }) {
+}: DialogPrimitive.Popup.Props & { showClose?: boolean }) {
   const { labels } = useLocale()
   // Portaled popups leave the DOM subtree that sets `dir`; carry the provider direction over.
   const dir = useDirection() === "rtl" ? "rtl" : undefined
@@ -62,16 +60,8 @@ function DialogContent({
   )
 }
 
-function DialogHeader({
-  className,
-  closeLabel: _closeLabel,
-  ...props
-}: React.ComponentProps<"div"> & { closeLabel?: string }) {
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return <div data-slot="dialog-header" className={cn("flex flex-col gap-1 pe-8", className)} {...props} />
-}
-
-function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="dialog-body" className={cn("space-y-3", className)} {...props} />
 }
 
 function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
@@ -100,4 +90,4 @@ function DialogDescription({ className, ...props }: DialogPrimitive.Description.
   )
 }
 
-export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription }
+export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription }

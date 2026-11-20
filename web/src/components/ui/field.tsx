@@ -30,48 +30,17 @@ import { cn } from "@/lib/utils"
 const fieldGap: Record<ControlSize, string> = { xs: "gap-1", sm: "gap-1.5", default: "gap-1.5", lg: "gap-2" }
 const labelText: Record<ControlSize, string> = { xs: "text-ui-sm", sm: "text-ui", default: "text-ui", lg: "text-ui-lg" }
 
-function Field({
-  className,
-  size,
-  label,
-  description,
-  error,
-  children,
-  ...props
-}: FieldPrimitive.Root.Props & {
-  size?: ControlSize | "inline"
-  label?: React.ReactNode
-  description?: React.ReactNode
-  error?: React.ReactNode
-}) {
-  const mappedSize: ControlSize | undefined = size === "inline" ? "sm" : size
-  const resolved = useControlSize(mappedSize)
-  const body =
-    label !== undefined || description !== undefined || error !== undefined ? (
-      <>
-        {label ? <FieldLabel>{label}</FieldLabel> : null}
-        {children}
-        {description ? <FieldDescription>{description}</FieldDescription> : null}
-        {error ? <FieldError>{error}</FieldError> : null}
-      </>
-    ) : (
-      children
-    )
+function Field({ className, size, ...props }: FieldPrimitive.Root.Props & { size?: ControlSize }) {
+  const resolved = useControlSize(size)
   const root = (
     <FieldPrimitive.Root
       data-slot="field"
       data-size={resolved}
-      className={cn(
-        "group/field flex min-w-0",
-        size === "inline" ? "flex-row items-center gap-2" : cn("flex-col", fieldGap[resolved]),
-        className,
-      )}
+      className={cn("group/field flex min-w-0 flex-col", fieldGap[resolved], className)}
       {...props}
-    >
-      {body}
-    </FieldPrimitive.Root>
+    />
   )
-  return mappedSize ? <ControlSizeContext.Provider value={mappedSize}>{root}</ControlSizeContext.Provider> : root
+  return size ? <ControlSizeContext.Provider value={size}>{root}</ControlSizeContext.Provider> : root
 }
 
 function FieldLabel({ className, ...props }: FieldPrimitive.Label.Props) {
@@ -113,19 +82,19 @@ function FieldDescription({ className, ...props }: FieldPrimitive.Description.Pr
   )
 }
 
-type FieldErrorProps = Omit<FieldPrimitive.Error.Props, "render" | "children"> & {
+type FieldErrorProps = Omit<FieldPrimitive.Error.Props, "match" | "render" | "children"> & {
   /** The message. Nothing renders while it is empty. */
   children?: React.ReactNode
 }
 
-function FieldError({ className, children, match = true, ...props }: FieldErrorProps) {
+function FieldError({ className, children, ...props }: FieldErrorProps) {
   const reduce = useReducedMotion()
   return (
     <AnimatePresence initial={false}>
       {children ? (
         <FieldPrimitive.Error
           key="error"
-          match={match}
+          match
           data-slot="field-error"
           render={
             <motion.p

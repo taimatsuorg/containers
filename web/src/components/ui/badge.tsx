@@ -12,23 +12,16 @@ const badgeVariants = cva(
     variants: {
       variant: {
         chip: "bg-muted text-foreground shadow-chip [a]:hover:shadow-raised-hover",
-        secondary: "bg-secondary text-secondary-foreground",
         primary: "bg-primary-subtle text-primary-text inset-ring inset-ring-primary-border",
-        progress: "bg-primary-subtle text-primary-text inset-ring inset-ring-primary-border",
         success: "bg-success-subtle text-success-text inset-ring inset-ring-success-border",
-        ok: "bg-success-subtle text-success-text inset-ring inset-ring-success-border",
         warning: "bg-warning-subtle text-warning-text inset-ring inset-ring-warning-border",
-        warn: "bg-warning-subtle text-warning-text inset-ring inset-ring-warning-border",
         destructive:
           "bg-destructive-subtle text-destructive-text inset-ring inset-ring-destructive-border",
-        fail: "bg-destructive-subtle text-destructive-text inset-ring inset-ring-destructive-border",
-        idle: "bg-muted text-muted-foreground",
         outline: "text-muted-foreground shadow-[inset_0_0_0_1px_var(--input)]",
       },
       size: {
         default: "h-6 px-2 text-ui-sm has-data-[slot=badge-avatar]:pl-1",
         sm: "h-5 px-1.5 text-ui-xs [&>svg]:size-3",
-        lg: "h-7 px-2.5 text-ui",
       },
     },
     defaultVariants: {

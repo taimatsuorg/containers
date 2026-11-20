@@ -30,27 +30,10 @@ type DrawerProps = Omit<DialogPrimitive.Root.Props, "open" | "defaultOpen" | "on
   onOpenChange?: (open: boolean, details: DialogPrimitive.Root.ChangeEventDetails) => void
   /** Edge the panel slides in from. */
   side?: DrawerSide
-  title?: React.ReactNode
-  description?: React.ReactNode
-  closeLabel?: string
-  footer?: React.ReactNode
-  size?: string
   children?: React.ReactNode
 }
 
-function Drawer({
-  open: openProp,
-  defaultOpen = false,
-  onOpenChange,
-  side = "right",
-  title,
-  description,
-  closeLabel: _closeLabel,
-  footer,
-  size: _size,
-  children,
-  ...props
-}: DrawerProps) {
+function Drawer({ open: openProp, defaultOpen = false, onOpenChange, side = "right", children, ...props }: DrawerProps) {
   const [uncontrolled, setUncontrolled] = React.useState(defaultOpen)
   const open = openProp ?? uncontrolled
   const handleOpenChange = React.useCallback(
@@ -61,25 +44,10 @@ function Drawer({
     [openProp, onOpenChange]
   )
   const value = React.useMemo(() => ({ open, side }), [open, side])
-  const content =
-    title !== undefined || description !== undefined || footer !== undefined ? (
-      <DrawerContent>
-        {title !== undefined || description !== undefined ? (
-          <DrawerHeader>
-            {title ? <DrawerTitle>{title}</DrawerTitle> : null}
-            {description ? <DrawerDescription>{description}</DrawerDescription> : null}
-          </DrawerHeader>
-        ) : null}
-        <div className="flex-1 overflow-y-auto px-5 py-3">{children}</div>
-        {footer ? <DrawerFooter>{footer}</DrawerFooter> : null}
-      </DrawerContent>
-    ) : (
-      children
-    )
   return (
     <DrawerContext.Provider value={value}>
       <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange} {...props}>
-        {content}
+        {children}
       </DialogPrimitive.Root>
     </DrawerContext.Provider>
   )

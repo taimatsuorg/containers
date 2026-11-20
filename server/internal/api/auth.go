@@ -118,15 +118,11 @@ func (s *Server) withAuth(next http.Handler) http.Handler {
 		if err == nil {
 			token = cookie.Value
 		}
-		isBackground := r.Header.Get("x-zeabur-background") == "1"
-		username, ok := s.auth.validateSession(token, !isBackground)
+		isBackground := r.Header.Get("X-Containers-Background") == "1"
+		_, ok := s.auth.validateSession(token, !isBackground)
 		if !ok {
 			if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/api" {
-				writeProblem(w, http.StatusUnauthorized, "signed-out",
-					"Authentication required",
-					"Your session has expired or you are not signed in.",
-					"Sign in to continue.",
-				)
+				writeError(w, http.StatusUnauthorized, "Authentication required")
 				return
 			}
 			ret := r.URL.RequestURI()
@@ -140,17 +136,12 @@ func (s *Server) withAuth(next http.Handler) http.Handler {
 
 		// CSRF protection for mutating API requests
 		if strings.HasPrefix(r.URL.Path, "/api/") && r.Method != http.MethodGet && r.Method != http.MethodHead {
-			if r.Header.Get("zeabur-request") != "1" {
-				writeProblem(w, http.StatusForbidden, "forbidden",
-					"Missing CSRF header",
-					"State-changing requests require the zeabur-request header.",
-					"Reload the page and try again.",
-				)
+			if r.Header.Get("X-Containers-Request") != "1" {
+				writeError(w, http.StatusForbidden, "Missing X-Containers-Request header")
 				return
 			}
 		}
 
-		_ = username
 		next.ServeHTTP(w, r)
 	})
 }
@@ -176,7 +167,7 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "Invalid form submission")
 		return
 	}
 	username := r.FormValue("username")
@@ -186,9 +177,7 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 
 	if !s.auth.verifyCredentials(username, password) {
 		if wantsJSON {
-			writeJSON(w, http.StatusUnauthorized, map[string]any{
-				"error": "Invalid username or password.",
-			})
+			writeError(w, http.StatusUnauthorized, "Invalid username or password.")
 			return
 		}
 		http.Redirect(w, r, "/auth/login?error=1&return="+url.QueryEscape(ret), http.StatusFound)
@@ -197,7 +186,7 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 
 	token, err := s.auth.createSession(username)
 	if err != nil {
-		http.Error(w, "failed to create session", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to create session")
 		return
 	}
 

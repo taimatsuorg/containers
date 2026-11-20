@@ -24,10 +24,7 @@ const buttonVariants = cva(
         outline:
           "bg-transparent text-foreground shadow-[inset_0_0_0_1px_var(--border)] hover:bg-secondary aria-expanded:bg-secondary",
         ghost: "text-foreground hover:bg-secondary aria-expanded:bg-secondary",
-        muted: "text-muted-foreground hover:bg-secondary hover:text-foreground aria-expanded:bg-secondary",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive-hover",
-        "secondary-destructive":
-          "bg-destructive-subtle text-destructive-text hover:bg-destructive/15",
         link: "rounded-md text-primary-text underline-offset-4 hover:underline",
         inverse: "bg-foreground text-background hover:bg-foreground/85",
         glass: "bg-card/70 text-foreground shadow-raised backdrop-blur-xl hover:bg-card aria-expanded:bg-card",
@@ -66,23 +63,17 @@ function Button({
   variant = "default",
   size = "default",
   shape = "default",
-  loading,
-  disabled,
-  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { loading?: boolean }) {
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
       data-variant={variant}
       data-size={size}
       data-shape={shape}
-      disabled={disabled || loading}
       className={cn(buttonVariants({ variant, size, shape, className }))}
       {...props}
-    >
-      {children}
-    </ButtonPrimitive>
+    />
   )
 }
 

@@ -56,17 +56,12 @@ const avatarVariants = cva(
   }
 )
 
-type AvatarProps = AvatarPrimitive.Root.Props &
-  Omit<VariantProps<typeof avatarVariants>, "size"> & {
-    size?: AvatarSizeProp | null
-    name?: string
-  }
+type AvatarProps = AvatarPrimitive.Root.Props & Omit<VariantProps<typeof avatarVariants>, "size"> & { size?: AvatarSizeProp | null }
 
-function Avatar({ className, size, shape, name, children, ...props }: AvatarProps) {
+function Avatar({ className, size, shape, ...props }: AvatarProps) {
   const group = React.useContext(AvatarGroupContext)
   const resolvedSize = toAvatarSize(size ?? group?.size ?? "md")
   const resolvedShape = shape ?? group?.shape ?? "circle"
-  const initials = name ? name.slice(0, 2).toUpperCase() : undefined
   return (
     <AvatarPrimitive.Root
       data-slot="avatar"
@@ -74,9 +69,7 @@ function Avatar({ className, size, shape, name, children, ...props }: AvatarProp
       data-shape={resolvedShape}
       className={cn(avatarVariants({ size: resolvedSize, shape: resolvedShape }), className)}
       {...props}
-    >
-      {children ?? (initials ? <span className="font-medium text-muted-foreground">{initials}</span> : null)}
-    </AvatarPrimitive.Root>
+    />
   )
 }
 

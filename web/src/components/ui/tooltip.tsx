@@ -10,28 +10,7 @@ function TooltipProvider({ delay = 300, ...props }: TooltipPrimitive.Provider.Pr
   return <TooltipPrimitive.Provider delay={delay} {...props} />
 }
 
-function Tooltip({
-  content,
-  children,
-  side,
-  sideOffset,
-  align,
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Root> & {
-  content?: React.ReactNode
-} & Pick<TooltipPrimitive.Positioner.Props, "side" | "sideOffset" | "align">) {
-  if (content !== undefined) {
-    return (
-      <TooltipPrimitive.Root {...props}>
-        <TooltipPrimitive.Trigger render={<span className="inline-flex">{children as React.ReactNode}</span>} />
-        <TooltipContent side={side} sideOffset={sideOffset} align={align}>
-          {content}
-        </TooltipContent>
-      </TooltipPrimitive.Root>
-    )
-  }
-  return <TooltipPrimitive.Root {...props}>{children}</TooltipPrimitive.Root>
-}
+const Tooltip = TooltipPrimitive.Root
 const TooltipTrigger = TooltipPrimitive.Trigger
 
 function TooltipContent({

@@ -21,22 +21,7 @@ import { cn } from "@/lib/utils"
  * with the title. Put the eyebrow and the description straight under PageHeader (not in
  * PageHeaderContent) and each takes its own full-width row.
  */
-function PageHeader({
-  className,
-  size = "default",
-  title,
-  actions,
-  badges,
-  description,
-  children,
-  ...props
-}: Omit<React.ComponentProps<"header">, "title"> & {
-  size?: "default" | "lg"
-  title?: React.ReactNode
-  actions?: React.ReactNode
-  badges?: React.ReactNode
-  description?: React.ReactNode
-}) {
+function PageHeader({ className, size = "default", ...props }: React.ComponentProps<"header"> & { size?: "default" | "lg" }) {
   return (
     <header
       data-slot="page-header"
@@ -47,23 +32,7 @@ function PageHeader({
         className
       )}
       {...props}
-    >
-      {title !== undefined ? (
-        <>
-          <PageHeaderContent>
-            <div className="flex flex-wrap items-center gap-2">
-              <PageHeaderTitle>{title}</PageHeaderTitle>
-              {badges}
-            </div>
-            {description ? <PageHeaderDescription>{description}</PageHeaderDescription> : null}
-          </PageHeaderContent>
-          {actions ? <PageHeaderActions>{actions}</PageHeaderActions> : null}
-          {children}
-        </>
-      ) : (
-        children
-      )}
-    </header>
+    />
   )
 }
 

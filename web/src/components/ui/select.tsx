@@ -40,27 +40,15 @@ const selectItemVariants = cva(
   }
 )
 
-type SelectProps<Value, Multiple extends boolean | undefined = false> = Omit<
-  SelectPrimitive.Root.Props<Value, Multiple>,
-  "onValueChange"
-> & {
+type SelectProps<Value, Multiple extends boolean | undefined = false> = SelectPrimitive.Root.Props<Value, Multiple> & {
   /** Sizes the trigger and the rows together. */
-  size?: ControlSize | "inline"
-  className?: string
-  translate?: "yes" | "no" | string
-  onValueChange?: (value: any, eventDetails?: any) => void
+  size?: ControlSize
 }
 
-function Select<Value, Multiple extends boolean | undefined = false>({
-  size,
-  className: _className,
-  onValueChange,
-  ...props
-}: SelectProps<Value, Multiple>) {
-  const mappedSize: ControlSize | undefined = size === "inline" ? "sm" : size
-  const root = <SelectPrimitive.Root<Value, Multiple> onValueChange={onValueChange as any} {...props} />
-  if (!mappedSize) return root
-  return <ControlSizeContext.Provider value={mappedSize}>{root}</ControlSizeContext.Provider>
+function Select<Value, Multiple extends boolean | undefined = false>({ size, ...props }: SelectProps<Value, Multiple>) {
+  const root = <SelectPrimitive.Root<Value, Multiple> {...props} />
+  if (!size) return root
+  return <ControlSizeContext.Provider value={size}>{root}</ControlSizeContext.Provider>
 }
 
 const SelectGroup = SelectPrimitive.Group
@@ -81,9 +69,8 @@ function SelectTrigger({
   size: sizeProp,
   children,
   ...props
-}: SelectPrimitive.Trigger.Props & Omit<VariantProps<typeof selectTriggerVariants>, "size"> & { size?: ControlSize | "inline" }) {
-  const mappedSize: ControlSize | undefined = sizeProp === "inline" ? "sm" : sizeProp
-  const size = useControlSize(mappedSize)
+}: SelectPrimitive.Trigger.Props & VariantProps<typeof selectTriggerVariants>) {
+  const size = useControlSize(sizeProp)
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"

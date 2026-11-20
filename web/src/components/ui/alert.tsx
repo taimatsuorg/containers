@@ -19,14 +19,8 @@ const alertVariants = cva(
         default: "border-border [&>[data-slot=alert-icon]]:text-foreground",
         info: "border-border [&>[data-slot=alert-icon]]:text-primary-text",
         success: "border-border [&>[data-slot=alert-icon]]:text-success-text",
-        ok: "border-border [&>[data-slot=alert-icon]]:text-success-text",
         warning: "border-border [&>[data-slot=alert-icon]]:text-warning-text",
-        warn: "border-border [&>[data-slot=alert-icon]]:text-warning-text",
         destructive:
-          "border-border text-destructive-text [&>[data-slot=alert-icon]]:text-destructive-text [&_[data-slot=alert-description]]:text-destructive-text/80",
-        fail:
-          "border-border text-destructive-text [&>[data-slot=alert-icon]]:text-destructive-text [&_[data-slot=alert-description]]:text-destructive-text/80",
-        problem:
           "border-border text-destructive-text [&>[data-slot=alert-icon]]:text-destructive-text [&_[data-slot=alert-description]]:text-destructive-text/80",
       },
       size: {
@@ -61,12 +55,8 @@ const defaultIcon: Record<AlertVariant, React.ComponentType<{ className?: string
   default: InfoIcon,
   info: InfoIcon,
   success: CheckCircleIcon,
-  ok: CheckCircleIcon,
   warning: WarningIcon,
-  warn: WarningIcon,
   destructive: AlertCircleIcon,
-  fail: AlertCircleIcon,
-  problem: AlertCircleIcon,
 }
 
 const EASE = [0.22, 1, 0.36, 1] as const
@@ -83,7 +73,7 @@ type AlertProps = Omit<
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
   /** Defaults to "alert" for warning/destructive and "status" otherwise. */
-  role?: "alert" | "status" | "note"
+  role?: "alert" | "status"
   /** Classes for the inner surface row (the outer element only animates height). */
   contentClassName?: string
   children?: React.ReactNode

@@ -23,36 +23,24 @@ type clientResizeFrame struct {
 	Rows uint   `json:"rows"`
 }
 
-func (s *Server) handleFollowPodLogs(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
-		writeProblem(w, http.StatusServiceUnavailable, "unavailable",
-			"Docker daemon unavailable",
-			"Cannot follow logs because the Docker client is not connected.",
-			"Ensure Docker is running.",
-		)
+func (s *Server) handleFollowContainerLogs(w http.ResponseWriter, r *http.Request) {
+	if !s.requireDocker(w) {
 		return
 	}
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "streaming unsupported")
 		return
 	}
 
-	pod := r.PathValue("pod")
-	tail := r.URL.Query().Get("tailLines")
-	if tail == "" {
-		tail = r.URL.Query().Get("tail")
-	}
+	id := r.PathValue("id")
+	tail := r.URL.Query().Get("tail")
 	timestamps := r.URL.Query().Get("timestamps") == "true"
 
-	stream, isTty, err := s.docker.FollowContainerLogs(r.Context(), pod, tail, timestamps)
+	stream, isTty, err := s.docker.FollowContainerLogs(r.Context(), id, tail, timestamps)
 	if err != nil {
-		writeProblem(w, http.StatusNotFound, "not-found",
-			"Container logs unavailable",
-			err.Error(),
-			"Check that the container exists.",
-		)
+		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
 	defer stream.Close()
@@ -88,7 +76,7 @@ func (s *Server) handleFollowPodLogs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handlePodExec(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleContainerExec(w http.ResponseWriter, r *http.Request) {
 	conn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
@@ -113,43 +101,26 @@ func (s *Server) handlePodExec(w http.ResponseWriter, r *http.Request) {
 
 	if s.docker == nil {
 		sendText(map[string]any{
-			"type": "error",
-			"problem": Problem{
-				Type:    "about:blank",
-				Title:   "Docker daemon unavailable",
-				Status:  http.StatusServiceUnavailable,
-				Detail:  "Cannot exec into container because Docker is not connected.",
-				Fix:     "Ensure Docker is running.",
-				Kind:    "unavailable",
-				Summary: Message{Key: "problem.summary.unavailable"},
-			},
+			"type":    "error",
+			"message": "Docker daemon is not connected.",
 		})
 		return
 	}
 
-	pod := r.PathValue("pod")
-	containerName := r.URL.Query().Get("container")
-	if containerName == "" {
-		containerName = pod
+	id := r.PathValue("id")
+	cmd := r.URL.Query()["cmd"]
+	if len(cmd) == 0 {
+		cmd = []string{"/bin/sh"}
 	}
-	cmd := r.URL.Query()["command"]
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	session, err := s.docker.ExecCreateAndAttach(ctx, pod, cmd)
+	session, err := s.docker.ExecCreateAndAttach(ctx, id, cmd)
 	if err != nil {
 		sendText(map[string]any{
-			"type": "error",
-			"problem": Problem{
-				Type:    "about:blank",
-				Title:   "Exec failed",
-				Status:  http.StatusBadGateway,
-				Detail:  err.Error(),
-				Fix:     "Check that the container is running and the command exists.",
-				Kind:    "internal",
-				Summary: Message{Key: "problem.summary.internal"},
-			},
+			"type":    "error",
+			"message": err.Error(),
 		})
 		return
 	}
@@ -157,7 +128,7 @@ func (s *Server) handlePodExec(w http.ResponseWriter, r *http.Request) {
 
 	sendText(map[string]any{
 		"type":      "ready",
-		"container": containerName,
+		"container": id,
 	})
 
 	done := make(chan struct{})
@@ -182,7 +153,6 @@ func (s *Server) handlePodExec(w http.ResponseWriter, r *http.Request) {
 		} else {
 			sendText(map[string]any{
 				"type":    "exit",
-				"reason":  "failed",
 				"message": err.Error(),
 			})
 		}
