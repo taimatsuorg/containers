@@ -8,7 +8,11 @@ export function AppFrame({
   className?: string
   children: React.ReactNode
 }) {
-  return <div className={cn("flex min-h-screen w-full bg-background text-foreground", className)}>{children}</div>
+  return (
+    <div className={cn("flex min-h-screen w-full bg-muted/60 text-foreground dark:bg-background", className)}>
+      {children}
+    </div>
+  )
 }
 
 export function FrameSidebar({
@@ -21,7 +25,7 @@ export function FrameSidebar({
   return (
     <aside
       className={cn(
-        "hidden w-60 shrink-0 flex-col border-r border-border bg-card md:flex",
+        "hidden w-60 shrink-0 flex-col bg-transparent md:flex",
         className,
       )}
     >
@@ -37,5 +41,14 @@ export function FramePanel({
   className?: string
   children: React.ReactNode
 }) {
-  return <main className={cn("flex min-w-0 flex-1 flex-col", className)}>{children}</main>
+  return (
+    <main
+      className={cn(
+        "flex min-w-0 flex-1 flex-col bg-background md:my-2 md:me-2 md:overflow-hidden md:rounded-2xl md:shadow-raised md:ring-1 md:ring-border/60",
+        className,
+      )}
+    >
+      {children}
+    </main>
+  )
 }

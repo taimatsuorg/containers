@@ -15,7 +15,7 @@ export function SummaryCard({
 }) {
   return (
     <div
-      className={cn("rounded-xl border border-border bg-card p-4 text-card-foreground", className)}
+      className={cn("rounded-xl bg-card p-4 text-card-foreground shadow-raised", className)}
       {...props}
     >
       {title !== undefined ? (

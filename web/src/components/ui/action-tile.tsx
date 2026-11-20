@@ -21,7 +21,7 @@ export function ActionTile({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex w-full items-start gap-3 rounded-xl border border-border bg-card p-3.5 text-left transition-colors hover:bg-secondary/60 disabled:pointer-events-none disabled:opacity-50",
+        "flex w-full items-start gap-3 rounded-xl bg-card p-3.5 text-left shadow-raised transition-[box-shadow,background-color] hover:shadow-raised-hover disabled:pointer-events-none disabled:opacity-50",
         className,
       )}
       {...props}

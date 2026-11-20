@@ -50,8 +50,8 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
-      <Card className="w-full max-w-sm">
+    <div className="flex min-h-screen items-center justify-center bg-muted/60 p-4 text-foreground dark:bg-background">
+      <Card className="w-full max-w-sm shadow-raised">
         <CardHeader className="space-y-2">
           <BrandLogo />
           <CardTitle className="pt-2 text-lg">Sign in</CardTitle>

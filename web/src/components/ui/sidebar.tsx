@@ -130,10 +130,10 @@ export function SidebarItem({
     props: mergeProps<"div">(
       {
         className: cn(
-          "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors",
+          "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-ui transition-[background-color,color,box-shadow] duration-150",
           isActive
-            ? "bg-secondary font-medium text-foreground"
-            : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+            ? "bg-card font-medium text-foreground shadow-raised"
+            : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
           className,
         ),
         children: (
@@ -164,7 +164,7 @@ export function SidebarSearch({
     <button
       type="button"
       className={cn(
-        "mx-3 mb-2 flex h-8 items-center justify-between gap-2 rounded-lg border border-border bg-background px-2.5 text-xs text-muted-foreground transition-colors hover:bg-secondary/60",
+        "mx-3 mb-2 flex h-8 items-center justify-between gap-2 rounded-lg bg-card/85 px-2.5 text-ui-sm text-muted-foreground shadow-well transition-colors hover:bg-card",
         className,
       )}
       {...props}

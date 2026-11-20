@@ -71,6 +71,25 @@
   vertical-align: calc(0.4em - var(--spacing) * 2);
 }
 
+@utility type-title {
+  font-size: var(--text-xl);
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+@utility type-heading {
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+@utility type-meta {
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
 /* Sonner inserts its own \3c style> after this sheet, so these rules carry one more type selector. */
 html [data-sonner-toaster] {
   font-family: inherit;
@@ -80,6 +99,13 @@ html [data-sonner-toast][data-styled="true"] [data-description] {
 }
 
 @theme inline {
+  --color-main: var(--border);
+  --color-subtle: var(--border-subtle);
+  --color-canvas: var(--muted);
+  --color-surface: var(--card);
+  --color-ok: var(--success);
+  --color-warn: var(--warning);
+  --color-fail: var(--destructive);
   --color-primary-hover: var(--primary-hover);
   --color-primary-active: var(--primary-active);
   --color-primary-subtle: var(--primary-subtle);

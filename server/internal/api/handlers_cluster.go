@@ -95,6 +95,11 @@ func (s *Server) handleClusterNodes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	ver := "docker"
+	if v, err := s.docker.Version(ctx); err == nil && v.Version != "" {
+		ver = v.Version
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"disk":            "unavailable",
 		"metrics":         "unavailable",
@@ -103,20 +108,33 @@ func (s *Server) handleClusterNodes(w http.ResponseWriter, r *http.Request) {
 		"unscheduledPods": 0,
 		"unreadable":      []any{},
 		"totals": map[string]any{
-			"nodes": 1,
-			"ready": 1,
+			"allocatable": map[string]any{
+				"cpu":    cpuCapacity,
+				"memory": memCapacity,
+			},
 		},
 		"items": []map[string]any{
 			{
-				"name":          host,
-				"ready":         "True",
-				"roles":         []string{"docker-host"},
-				"unschedulable": false,
-				"conditions":    []any{},
-				"taints":        []any{},
-				"osImage":       osImage,
-				"kernel":        kernel,
-				"arch":          arch,
+				"id":               "cluster/nodes/" + host,
+				"name":             host,
+				"ready":            "True",
+				"roles":            []string{"docker-host"},
+				"cordoned":         false,
+				"problems":         []any{},
+				"taints":           []any{},
+				"osImage":          osImage,
+				"kernelVersion":    kernel,
+				"architecture":     arch,
+				"containerRuntime": "docker://" + ver,
+				"kubeletVersion":   "docker-" + ver,
+				"origin": map[string]any{
+					"kind": "Node",
+					"name": host,
+				},
+				"allocatable": map[string]any{
+					"cpu":    cpuCapacity,
+					"memory": memCapacity,
+				},
 				"capacity": map[string]any{
 					"cpu":    cpuCapacity,
 					"memory": memCapacity,

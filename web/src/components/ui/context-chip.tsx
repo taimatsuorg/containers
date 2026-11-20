@@ -21,7 +21,7 @@ export function ContextChip({
     <button
       type="button"
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-secondary/60",
+        "flex w-full items-center gap-2.5 rounded-xl bg-card px-2.5 py-2 text-left text-ui-sm shadow-raised transition-[box-shadow,background-color] hover:shadow-raised-hover",
         className,
       )}
       {...props}

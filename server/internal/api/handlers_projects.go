@@ -165,7 +165,7 @@ func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 			},
 			"status": map[string]any{
 				"health": health,
-				"phase":  containerPhase(ctr),
+				"word":   containerStatusWord(ctr),
 				"reason": ctr.Status,
 			},
 			"containers": []map[string]any{
@@ -418,6 +418,19 @@ func containerPhase(ctr dockertypes.Container) string {
 		return "running"
 	case "restarting", "created":
 		return "pending"
+	case "exited", "dead":
+		return "failed"
+	default:
+		return "unknown"
+	}
+}
+
+func containerStatusWord(ctr dockertypes.Container) string {
+	switch ctr.State {
+	case "running":
+		return "ready"
+	case "restarting", "created":
+		return "rollingOut"
 	case "exited", "dead":
 		return "failed"
 	default:
