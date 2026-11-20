@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { Box, Cpu, FolderKanban, Layers, Plus } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 import { DeployDialog } from "@/components/deploy-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -15,14 +15,6 @@ import {
   PageHeaderDescription,
   PageHeaderTitle,
 } from "@/components/ui/page-header"
-import {
-  SimpleTable,
-  SimpleTableBody,
-  SimpleTableCell,
-  SimpleTableHead,
-  SimpleTableHeader,
-  SimpleTableRow,
-} from "@/components/ui/simple-table"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   StatCard,
@@ -32,16 +24,80 @@ import {
   StatCardLabel,
   StatCardValue,
 } from "@/components/ui/stat-card"
-import { api } from "@/lib/api"
+import { Table, type TableColumn } from "@/components/ui/table"
+import { api, type ContainerSummary } from "@/lib/api"
 import { formatBytes, stateBadgeVariant } from "@/lib/format"
+
+const DEFAULT_SORT = { key: "name", direction: "asc" as const }
 
 export function OverviewPage() {
   const [deployOpen, setDeployOpen] = useState(false)
+  const navigate = useNavigate()
   const overview = useQuery({
     queryKey: ["overview"],
     queryFn: api.getOverview,
     refetchInterval: 8_000,
   })
+
+  const columns = useMemo<TableColumn<ContainerSummary>[]>(
+    () => [
+      {
+        key: "name",
+        header: "Name",
+        width: 190,
+        grow: true,
+        sortable: true,
+        cell: (ctr) => <span className="font-medium text-foreground">{ctr.name}</span>,
+      },
+      {
+        key: "project",
+        header: "Project",
+        width: 130,
+        sortable: true,
+        cell: (ctr) => (
+          <Link
+            to="/projects/$project"
+            params={{ project: ctr.project }}
+            onClick={(e) => e.stopPropagation()}
+            className="text-muted-foreground hover:text-foreground hover:underline"
+          >
+            {ctr.project}
+          </Link>
+        ),
+      },
+      {
+        key: "image",
+        header: "Image",
+        width: 240,
+        grow: true,
+        sortable: true,
+        cell: (ctr) => (
+          <span className="font-mono text-ui-xs text-muted-foreground" title={ctr.image}>
+            {ctr.image}
+          </span>
+        ),
+      },
+      {
+        key: "state",
+        header: "State",
+        width: 110,
+        sortable: true,
+        cell: (ctr) => (
+          <Badge variant={stateBadgeVariant(ctr.state)} size="sm">
+            {ctr.state}
+          </Badge>
+        ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        width: 170,
+        sortable: true,
+        cell: (ctr) => <span className="text-muted-foreground">{ctr.status}</span>,
+      },
+    ],
+    [],
+  )
 
   if (overview.isPending) {
     return (
@@ -69,6 +125,7 @@ export function OverviewPage() {
 
   const { host, counts, projects } = overview.data
   const allContainers = projects.flatMap((p) => p.containers).slice(0, 12)
+  const tableHeight = allContainers.length === 0 ? 160 : 40 + Math.min(allContainers.length, 10) * 44
 
   return (
     <div className="space-y-8">
@@ -201,48 +258,17 @@ export function OverviewPage() {
             Manage all
           </Button>
         </div>
-        <SimpleTable variant="plain">
-          <SimpleTableHeader>
-            <SimpleTableRow>
-              <SimpleTableHead>Name</SimpleTableHead>
-              <SimpleTableHead>Project</SimpleTableHead>
-              <SimpleTableHead>Image</SimpleTableHead>
-              <SimpleTableHead>State</SimpleTableHead>
-              <SimpleTableHead>Status</SimpleTableHead>
-            </SimpleTableRow>
-          </SimpleTableHeader>
-          <SimpleTableBody>
-            {allContainers.map((ctr) => (
-              <SimpleTableRow key={ctr.id}>
-                <SimpleTableCell className="font-medium">
-                  <Link
-                    to="/containers/$id"
-                    params={{ id: ctr.name }}
-                    className="text-foreground hover:text-primary-text hover:underline"
-                  >
-                    {ctr.name}
-                  </Link>
-                </SimpleTableCell>
-                <SimpleTableCell>
-                  <Link
-                    to="/projects/$project"
-                    params={{ project: ctr.project }}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    {ctr.project}
-                  </Link>
-                </SimpleTableCell>
-                <SimpleTableCell variant="code">{ctr.image}</SimpleTableCell>
-                <SimpleTableCell>
-                  <Badge variant={stateBadgeVariant(ctr.state)} size="sm">
-                    {ctr.state}
-                  </Badge>
-                </SimpleTableCell>
-                <SimpleTableCell className="text-muted-foreground">{ctr.status}</SimpleTableCell>
-              </SimpleTableRow>
-            ))}
-          </SimpleTableBody>
-        </SimpleTable>
+        <Table
+          data={allContainers}
+          columns={columns}
+          getRowId={(ctr) => ctr.id}
+          aria-label="Recent containers"
+          resizable
+          defaultSort={DEFAULT_SORT}
+          height={tableHeight}
+          onRowClick={({ row }) => void navigate({ to: "/containers/$id", params: { id: row.name } })}
+          emptyState="No containers running on this host."
+        />
       </section>
 
       <DeployDialog open={deployOpen} onOpenChange={setDeployOpen} />

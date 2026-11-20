@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 import { Network } from "lucide-react"
+import { useMemo } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/data-table"
 import { EmptyState, EmptyStateIcon, EmptyStateTitle } from "@/components/ui/empty-state"
 import {
   PageHeader,
@@ -10,22 +12,96 @@ import {
   PageHeaderDescription,
   PageHeaderTitle,
 } from "@/components/ui/page-header"
-import {
-  SimpleTable,
-  SimpleTableBody,
-  SimpleTableCell,
-  SimpleTableHead,
-  SimpleTableHeader,
-  SimpleTableRow,
-} from "@/components/ui/simple-table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { api } from "@/lib/api"
+import { api, type NetworkSummary } from "@/lib/api"
+
+const DEFAULT_SORT = { key: "name", direction: "asc" as const }
+const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
 export function NetworksPage() {
   const networks = useQuery({
     queryKey: ["networks"],
     queryFn: api.listNetworks,
   })
+
+  const filters = useMemo<DataTableFilter<NetworkSummary>[]>(() => {
+    const drivers = new Set<string>()
+    const scopes = new Set<string>()
+    for (const n of networks.data ?? []) {
+      if (n.driver) drivers.add(n.driver)
+      if (n.scope) scopes.add(n.scope)
+    }
+    const list: DataTableFilter<NetworkSummary>[] = []
+    if (drivers.size > 0) {
+      list.push({
+        key: "driver",
+        label: "Driver",
+        options: Array.from(drivers)
+          .sort((a, b) => a.localeCompare(b))
+          .map((d) => ({ value: d, label: d })),
+      })
+    }
+    if (scopes.size > 0) {
+      list.push({
+        key: "scope",
+        label: "Scope",
+        options: Array.from(scopes)
+          .sort((a, b) => a.localeCompare(b))
+          .map((s) => ({ value: s, label: s })),
+      })
+    }
+    return list
+  }, [networks.data])
+
+  const columns = useMemo<DataTableColumn<NetworkSummary>[]>(
+    () => [
+      {
+        key: "name",
+        header: "Name",
+        width: 180,
+        grow: true,
+        sortable: true,
+        cell: (n) => <span className="font-medium text-foreground">{n.name}</span>,
+      },
+      {
+        key: "shortId",
+        header: "ID",
+        width: 140,
+        sortable: true,
+        cell: (n) => (
+          <span className="font-mono text-ui-xs text-muted-foreground">{n.shortId}</span>
+        ),
+      },
+      {
+        key: "driver",
+        header: "Driver",
+        width: 120,
+        sortable: true,
+        cell: (n) => (
+          <Badge variant="outline" size="sm">
+            {n.driver}
+          </Badge>
+        ),
+      },
+      {
+        key: "scope",
+        header: "Scope",
+        width: 110,
+        sortable: true,
+        cell: (n) => <span className="text-muted-foreground">{n.scope}</span>,
+      },
+      {
+        key: "containers",
+        header: "Containers",
+        width: 120,
+        align: "right",
+        sortable: true,
+        sortValue: (n) => n.containers,
+        cell: (n) => <span className="tabular-nums">{n.containers}</span>,
+      },
+    ],
+    [],
+  )
 
   return (
     <div className="space-y-6">
@@ -43,42 +119,27 @@ export function NetworksPage() {
           <AlertTitle>Failed to list networks</AlertTitle>
           <AlertDescription>{networks.error.message}</AlertDescription>
         </Alert>
-      ) : (networks.data ?? []).length === 0 ? (
-        <EmptyState variant="outline">
-          <EmptyStateIcon>
-            <Network />
-          </EmptyStateIcon>
-          <EmptyStateTitle>No networks found</EmptyStateTitle>
-        </EmptyState>
       ) : (
-        <SimpleTable variant="plain">
-          <SimpleTableHeader>
-            <SimpleTableRow>
-              <SimpleTableHead>Name</SimpleTableHead>
-              <SimpleTableHead>ID</SimpleTableHead>
-              <SimpleTableHead>Driver</SimpleTableHead>
-              <SimpleTableHead>Scope</SimpleTableHead>
-              <SimpleTableHead align="right">Containers</SimpleTableHead>
-            </SimpleTableRow>
-          </SimpleTableHeader>
-          <SimpleTableBody>
-            {(networks.data ?? []).map((n) => (
-              <SimpleTableRow key={n.id}>
-                <SimpleTableCell className="font-medium">{n.name}</SimpleTableCell>
-                <SimpleTableCell variant="code">{n.shortId}</SimpleTableCell>
-                <SimpleTableCell>
-                  <Badge variant="outline" size="sm">
-                    {n.driver}
-                  </Badge>
-                </SimpleTableCell>
-                <SimpleTableCell className="text-muted-foreground">{n.scope}</SimpleTableCell>
-                <SimpleTableCell align="right" className="tabular-nums">
-                  {n.containers}
-                </SimpleTableCell>
-              </SimpleTableRow>
-            ))}
-          </SimpleTableBody>
-        </SimpleTable>
+        <DataTable
+          data={networks.data ?? []}
+          columns={columns}
+          getRowId={(n) => n.id}
+          aria-label="Networks"
+          noun="networks"
+          searchPlaceholder="Search networks..."
+          filters={filters}
+          defaultSort={DEFAULT_SORT}
+          defaultPageSize={20}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          emptyState={
+            <EmptyState size="sm">
+              <EmptyStateIcon>
+                <Network />
+              </EmptyStateIcon>
+              <EmptyStateTitle>No networks found</EmptyStateTitle>
+            </EmptyState>
+          }
+        />
       )}
     </div>
   )

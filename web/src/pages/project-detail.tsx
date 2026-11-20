@@ -1,12 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Link, useParams } from "@tanstack/react-router"
+import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { ArrowLeft, Play, Plus, RotateCw, Square, Terminal } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 import { DeployDialog } from "@/components/deploy-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DataTable,
+  DataTableRowActions,
+  type DataTableColumn,
+  type DataTableFilter,
+} from "@/components/ui/data-table"
+import { MenuItem } from "@/components/ui/menu"
 import {
   PageHeader,
   PageHeaderActions,
@@ -15,23 +22,19 @@ import {
   PageHeaderEyebrow,
   PageHeaderTitle,
 } from "@/components/ui/page-header"
-import {
-  SimpleTable,
-  SimpleTableBody,
-  SimpleTableCell,
-  SimpleTableHead,
-  SimpleTableHeader,
-  SimpleTableRow,
-} from "@/components/ui/simple-table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
-import { api } from "@/lib/api"
+import { api, type ContainerSummary } from "@/lib/api"
 import { stateBadgeVariant } from "@/lib/format"
+
+const DEFAULT_SORT = { key: "name", direction: "asc" as const }
+const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
 export function ProjectDetailPage() {
   const { project } = useParams({ from: "/projects/$project" })
   const qc = useQueryClient()
   const toast = useToast()
+  const navigate = useNavigate()
   const [deployOpen, setDeployOpen] = useState(false)
 
   const detail = useQuery({
@@ -58,6 +61,183 @@ export function ProjectDetailPage() {
       toast.add({ title: "Action failed", description: err.message, type: "error" })
     },
   })
+
+  const bulkAction = useMutation({
+    mutationFn: async ({
+      ids,
+      op,
+    }: {
+      ids: string[]
+      op: "start" | "stop" | "restart"
+      onDone?: () => void
+    }) => {
+      const results = await Promise.allSettled(
+        ids.map((id) => {
+          if (op === "start") return api.startContainer(id)
+          if (op === "stop") return api.stopContainer(id)
+          return api.restartContainer(id)
+        }),
+      )
+      const succeeded = results.filter((r) => r.status === "fulfilled").length
+      const failed = results.length - succeeded
+      return { op, succeeded, failed }
+    },
+    onSuccess: async (res, vars) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["projects"] }),
+        qc.invalidateQueries({ queryKey: ["overview"] }),
+        qc.invalidateQueries({ queryKey: ["containers"] }),
+      ])
+      vars.onDone?.()
+      if (res.failed === 0) {
+        toast.add({
+          title: `${res.succeeded} container${res.succeeded === 1 ? "" : "s"} ${res.op}ed`,
+          type: "success",
+        })
+      } else {
+        toast.add({
+          title: `Bulk ${res.op} completed with errors`,
+          description: `${res.succeeded} succeeded, ${res.failed} failed`,
+          type: "error",
+        })
+      }
+    },
+    onError: (err) => {
+      toast.add({ title: "Bulk action failed", description: err.message, type: "error" })
+    },
+  })
+
+  const containers = detail.data?.containers ?? []
+
+  const filters = useMemo<DataTableFilter<ContainerSummary>[]>(() => {
+    const states = new Set<string>(["running", "exited"])
+    for (const c of containers) {
+      if (c.state) states.add(c.state)
+    }
+    const priority = ["running", "exited"]
+    const sortedStates = Array.from(states).sort((a, b) => {
+      const ia = priority.indexOf(a)
+      const ib = priority.indexOf(b)
+      if (ia !== -1 && ib !== -1) return ia - ib
+      if (ia !== -1) return -1
+      if (ib !== -1) return 1
+      return a.localeCompare(b)
+    })
+    return [
+      {
+        key: "state",
+        label: "State",
+        options: sortedStates.map((s) => ({ value: s, label: s })),
+      },
+    ]
+  }, [containers])
+
+  const columns = useMemo<DataTableColumn<ContainerSummary>[]>(
+    () => [
+      {
+        key: "name",
+        header: "Container",
+        width: 190,
+        grow: true,
+        sortable: true,
+        hideable: false,
+        cell: (c) => <span className="font-medium text-foreground">{c.name}</span>,
+      },
+      {
+        key: "image",
+        header: "Image",
+        width: 240,
+        grow: true,
+        sortable: true,
+        cell: (c) => (
+          <span className="font-mono text-ui-xs text-muted-foreground" title={c.image}>
+            {c.image}
+          </span>
+        ),
+      },
+      {
+        key: "state",
+        header: "State",
+        width: 110,
+        sortable: true,
+        cell: (c) => (
+          <Badge variant={stateBadgeVariant(c.state)} size="sm">
+            {c.state}
+          </Badge>
+        ),
+      },
+      {
+        key: "ports",
+        header: "Ports",
+        width: 160,
+        cell: (c) => {
+          const ports = c.ports
+            .filter((pt) => pt.publicPort > 0)
+            .map((pt) => `${pt.publicPort}:${pt.privatePort}/${pt.type}`)
+          const label = ports.length > 0 ? ports.join(", ") : "—"
+          return (
+            <span
+              className="font-mono text-ui-xs text-muted-foreground"
+              title={ports.length > 0 ? label : undefined}
+            >
+              {label}
+            </span>
+          )
+        },
+      },
+      {
+        key: "status",
+        header: "Status",
+        width: 160,
+        sortable: true,
+        cell: (c) => <span className="text-muted-foreground">{c.status}</span>,
+      },
+      {
+        key: "actions",
+        header: "",
+        label: "Actions",
+        width: 56,
+        align: "right",
+        hideable: false,
+        cell: (c) => {
+          const running = c.state === "running"
+          return (
+            <DataTableRowActions>
+              <MenuItem onClick={() => void navigate({ to: "/containers/$id", params: { id: c.name } })}>
+                <Terminal className="size-4" />
+                Inspect / Terminal
+              </MenuItem>
+              {running ? (
+                <MenuItem
+                  disabled={action.isPending}
+                  onClick={() => action.mutate({ id: c.name, op: "stop" })}
+                >
+                  <Square className="size-4" />
+                  Stop
+                </MenuItem>
+              ) : (
+                <MenuItem
+                  disabled={action.isPending}
+                  onClick={() => action.mutate({ id: c.name, op: "start" })}
+                >
+                  <Play className="size-4" />
+                  Start
+                </MenuItem>
+              )}
+              <MenuItem
+                disabled={action.isPending}
+                onClick={() => action.mutate({ id: c.name, op: "restart" })}
+              >
+                <RotateCw className="size-4" />
+                Restart
+              </MenuItem>
+            </DataTableRowActions>
+          )
+        },
+      },
+    ],
+    [action.isPending, action.mutate, navigate],
+  )
 
   if (detail.isPending) {
     return (
@@ -105,89 +285,57 @@ export function ProjectDetailPage() {
         </PageHeaderActions>
       </PageHeader>
 
-      <SimpleTable variant="plain">
-        <SimpleTableHeader>
-          <SimpleTableRow>
-            <SimpleTableHead>Container</SimpleTableHead>
-            <SimpleTableHead>Image</SimpleTableHead>
-            <SimpleTableHead>State</SimpleTableHead>
-            <SimpleTableHead>Ports</SimpleTableHead>
-            <SimpleTableHead align="right">Actions</SimpleTableHead>
-          </SimpleTableRow>
-        </SimpleTableHeader>
-        <SimpleTableBody>
-          {p.containers.map((ctr) => {
-            const running = ctr.state === "running"
-            const ports = ctr.ports
-              .filter((pt) => pt.publicPort > 0)
-              .map((pt) => `${pt.publicPort}:${pt.privatePort}/${pt.type}`)
-            return (
-              <SimpleTableRow key={ctr.id}>
-                <SimpleTableCell className="font-medium">
-                  <Link
-                    to="/containers/$id"
-                    params={{ id: ctr.name }}
-                    className="text-foreground hover:text-primary-text hover:underline"
-                  >
-                    {ctr.name}
-                  </Link>
-                </SimpleTableCell>
-                <SimpleTableCell variant="code">{ctr.image}</SimpleTableCell>
-                <SimpleTableCell>
-                  <Badge variant={stateBadgeVariant(ctr.state)} size="sm">
-                    {ctr.state}
-                  </Badge>
-                </SimpleTableCell>
-                <SimpleTableCell className="font-mono text-ui-xs text-muted-foreground">
-                  {ports.length > 0 ? ports.join(", ") : "—"}
-                </SimpleTableCell>
-                <SimpleTableCell align="right">
-                  <div className="inline-flex items-center gap-1">
-                    {running ? (
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        title="Stop"
-                        disabled={action.isPending}
-                        onClick={() => action.mutate({ id: ctr.name, op: "stop" })}
-                      >
-                        <Square className="size-3.5" />
-                      </Button>
-                    ) : (
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        title="Start"
-                        disabled={action.isPending}
-                        onClick={() => action.mutate({ id: ctr.name, op: "start" })}
-                      >
-                        <Play className="size-3.5" />
-                      </Button>
-                    )}
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      title="Restart"
-                      disabled={action.isPending}
-                      onClick={() => action.mutate({ id: ctr.name, op: "restart" })}
-                    >
-                      <RotateCw className="size-3.5" />
-                    </Button>
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      title="Inspect / Terminal"
-                      render={<Link to="/containers/$id" params={{ id: ctr.name }} />}
-                    >
-                      <Terminal className="size-3.5" />
-                    </Button>
-                  </div>
-                </SimpleTableCell>
-              </SimpleTableRow>
-            )
-          })}
-        </SimpleTableBody>
-      </SimpleTable>
+      <DataTable
+        data={p.containers}
+        columns={columns}
+        getRowId={(c) => c.id}
+        aria-label={`${p.name} containers`}
+        noun="containers"
+        searchPlaceholder="Search containers in project..."
+        filters={filters}
+        defaultSort={DEFAULT_SORT}
+        defaultPageSize={20}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        selectable
+        bulkActions={(rows, clear) => (
+          <>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={bulkAction.isPending}
+              onClick={() =>
+                bulkAction.mutate({ ids: rows.map((r) => r.name), op: "start", onDone: clear })
+              }
+            >
+              <Play data-icon="inline-start" className="size-3" />
+              Start
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={bulkAction.isPending}
+              onClick={() =>
+                bulkAction.mutate({ ids: rows.map((r) => r.name), op: "stop", onDone: clear })
+              }
+            >
+              <Square data-icon="inline-start" className="size-3" />
+              Stop
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={bulkAction.isPending}
+              onClick={() =>
+                bulkAction.mutate({ ids: rows.map((r) => r.name), op: "restart", onDone: clear })
+              }
+            >
+              <RotateCw data-icon="inline-start" className="size-3" />
+              Restart
+            </Button>
+          </>
+        )}
+        onRowClick={({ row }) => void navigate({ to: "/containers/$id", params: { id: row.name } })}
+      />
 
       <DeployDialog open={deployOpen} onOpenChange={setDeployOpen} defaultProject={p.name} />
     </div>

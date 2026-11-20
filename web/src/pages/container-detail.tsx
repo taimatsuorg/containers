@@ -11,13 +11,14 @@ import {
   Square,
   Trash2,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import { TerminalPane } from "@/components/terminal-pane"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import {
   Dialog,
   DialogContent,
@@ -35,21 +36,14 @@ import {
   PageHeaderEyebrow,
   PageHeaderTitle,
 } from "@/components/ui/page-header"
-import {
-  SimpleTable,
-  SimpleTableBody,
-  SimpleTableCell,
-  SimpleTableHead,
-  SimpleTableHeader,
-  SimpleTableRow,
-} from "@/components/ui/simple-table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard, StatCardHeader, StatCardLabel, StatCardValue } from "@/components/ui/stat-card"
 import { Switch } from "@/components/ui/switch"
+import { Table, type TableColumn } from "@/components/ui/table"
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/toast"
 import { UsageMeter } from "@/components/ui/usage-meter"
-import { api } from "@/lib/api"
+import { api, type MountInfo } from "@/lib/api"
 import { formatBytes, stateBadgeVariant } from "@/lib/format"
 
 const SECRET_KEY_RE = /(pass|secret|token|key|auth|pwd)/i
@@ -62,6 +56,55 @@ export function ContainerDetailPage() {
 
   const [tab, setTab] = useState("overview")
   const [confirmRemove, setConfirmRemove] = useState(false)
+
+  const mountColumns = useMemo<TableColumn<MountInfo>[]>(
+    () => [
+      {
+        key: "type",
+        header: "Type",
+        width: 100,
+        sortable: true,
+        cell: (m) => <span className="text-muted-foreground">{m.type}</span>,
+      },
+      {
+        key: "source",
+        header: "Source",
+        width: 260,
+        grow: true,
+        sortable: true,
+        cell: (m) => (
+          <span className="font-mono text-ui-xs text-foreground" title={m.source}>
+            {m.source}
+          </span>
+        ),
+      },
+      {
+        key: "destination",
+        header: "Destination",
+        width: 240,
+        grow: true,
+        sortable: true,
+        cell: (m) => (
+          <span className="font-mono text-ui-xs text-muted-foreground" title={m.destination}>
+            {m.destination}
+          </span>
+        ),
+      },
+      {
+        key: "readOnly",
+        header: "Mode",
+        width: 90,
+        sortable: true,
+        sortValue: (m) => (m.readOnly ? "ro" : "rw"),
+        cell: (m) => (
+          <Badge variant="outline" size="sm">
+            {m.readOnly ? "ro" : "rw"}
+          </Badge>
+        ),
+      },
+    ],
+    [],
+  )
 
   const detail = useQuery({
     queryKey: ["containers", id],
@@ -308,38 +351,15 @@ export function ContainerDetailPage() {
 
           <section className="space-y-2">
             <h3 className="font-heading text-ui font-semibold">Mounts ({c.mounts.length})</h3>
-            <SimpleTable variant="plain">
-              <SimpleTableHeader>
-                <SimpleTableRow>
-                  <SimpleTableHead>Type</SimpleTableHead>
-                  <SimpleTableHead>Source</SimpleTableHead>
-                  <SimpleTableHead>Destination</SimpleTableHead>
-                  <SimpleTableHead>Mode</SimpleTableHead>
-                </SimpleTableRow>
-              </SimpleTableHeader>
-              <SimpleTableBody>
-                {c.mounts.length === 0 ? (
-                  <SimpleTableRow>
-                    <SimpleTableCell colSpan={4} className="text-muted-foreground">
-                      No volume mounts
-                    </SimpleTableCell>
-                  </SimpleTableRow>
-                ) : (
-                  c.mounts.map((m, idx) => (
-                    <SimpleTableRow key={idx}>
-                      <SimpleTableCell>{m.type}</SimpleTableCell>
-                      <SimpleTableCell variant="code">{m.source}</SimpleTableCell>
-                      <SimpleTableCell variant="code">{m.destination}</SimpleTableCell>
-                      <SimpleTableCell>
-                        <Badge variant="outline" size="sm">
-                          {m.readOnly ? "ro" : "rw"}
-                        </Badge>
-                      </SimpleTableCell>
-                    </SimpleTableRow>
-                  ))
-                )}
-              </SimpleTableBody>
-            </SimpleTable>
+            <Table
+              data={c.mounts}
+              columns={mountColumns}
+              getRowId={(m, i) => `${m.destination}-${i}`}
+              aria-label="Container mounts"
+              resizable
+              height={c.mounts.length === 0 ? 120 : 40 + Math.min(c.mounts.length, 8) * 44}
+              emptyState="No volume mounts"
+            />
           </section>
         </TabsPanel>
 
@@ -467,32 +487,79 @@ function LogsViewer({ containerId }: { containerId: string }) {
   )
 }
 
+type EnvEntry = {
+  id: string
+  key: string
+  value: string
+}
+
+const ENV_DEFAULT_SORT = { key: "key", direction: "asc" as const }
+const ENV_PAGE_SIZE_OPTIONS = [10, 20, 50]
+
 function EnvViewer({ env }: { env: string[] }) {
-  const [filter, setFilter] = useState("")
   const [revealSecrets, setRevealSecrets] = useState(false)
 
-  const pairs = env
-    .map((entry) => {
-      const idx = entry.indexOf("=")
-      return idx >= 0 ? [entry.slice(0, idx), entry.slice(idx + 1)] : [entry, ""]
-    })
-    .filter(
-      ([k, v]) =>
-        !filter ||
-        k.toLowerCase().includes(filter.toLowerCase()) ||
-        v.toLowerCase().includes(filter.toLowerCase()),
-    )
+  const rows = useMemo<EnvEntry[]>(
+    () =>
+      env.map((entry, i) => {
+        const idx = entry.indexOf("=")
+        const key = idx >= 0 ? entry.slice(0, idx) : entry
+        const value = idx >= 0 ? entry.slice(idx + 1) : ""
+        return { id: `${key}-${i}`, key, value }
+      }),
+    [env],
+  )
+
+  const columns = useMemo<DataTableColumn<EnvEntry>[]>(
+    () => [
+      {
+        key: "key",
+        header: "Key",
+        width: 240,
+        sortable: true,
+        hideable: false,
+        cell: (row) => (
+          <span className="font-mono text-ui-xs font-medium text-foreground" title={row.key}>
+            {row.key}
+          </span>
+        ),
+      },
+      {
+        key: "value",
+        header: "Value",
+        width: 380,
+        grow: true,
+        sortable: true,
+        cell: (row) => {
+          const masked = !revealSecrets && SECRET_KEY_RE.test(row.key) && row.value.length > 0
+          const display = masked ? "••••••••" : row.value || "—"
+          return (
+            <span
+              className="font-mono text-ui-xs text-muted-foreground"
+              title={!masked && row.value ? row.value : undefined}
+            >
+              {display}
+            </span>
+          )
+        },
+      },
+    ],
+    [revealSecrets],
+  )
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Input
-          size="sm"
-          placeholder="Filter variables..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="w-64"
-        />
+    <DataTable
+      data={rows}
+      columns={columns}
+      getRowId={(r) => r.id}
+      aria-label="Environment variables"
+      noun="variables"
+      searchPlaceholder="Search variables..."
+      searchText={(r) => (!revealSecrets && SECRET_KEY_RE.test(r.key) ? r.key : `${r.key} ${r.value}`)}
+      defaultSort={ENV_DEFAULT_SORT}
+      defaultPageSize={20}
+      pageSizeOptions={ENV_PAGE_SIZE_OPTIONS}
+      toolbar={
         <Button size="sm" variant="outline" onClick={() => setRevealSecrets((v) => !v)}>
           {revealSecrets ? (
             <>
@@ -506,39 +573,8 @@ function EnvViewer({ env }: { env: string[] }) {
             </>
           )}
         </Button>
-      </div>
-
-      <SimpleTable variant="plain">
-        <SimpleTableHeader>
-          <SimpleTableRow>
-            <SimpleTableHead>Key</SimpleTableHead>
-            <SimpleTableHead>Value</SimpleTableHead>
-          </SimpleTableRow>
-        </SimpleTableHeader>
-        <SimpleTableBody>
-          {pairs.length === 0 ? (
-            <SimpleTableRow>
-              <SimpleTableCell colSpan={2} className="text-muted-foreground">
-                No environment variables
-              </SimpleTableCell>
-            </SimpleTableRow>
-          ) : (
-            pairs.map(([k, v], i) => {
-              const masked = !revealSecrets && SECRET_KEY_RE.test(k) && v.length > 0
-              return (
-                <SimpleTableRow key={`${k}-${i}`}>
-                  <SimpleTableCell variant="code" className="font-medium">
-                    {k}
-                  </SimpleTableCell>
-                  <SimpleTableCell variant="code" className="break-all">
-                    {masked ? "••••••••" : v || "—"}
-                  </SimpleTableCell>
-                </SimpleTableRow>
-              )
-            })
-          )}
-        </SimpleTableBody>
-      </SimpleTable>
-    </div>
+      }
+      emptyState="No environment variables"
+    />
   )
 }

@@ -174,35 +174,35 @@
   @keyframes scroll-fade-top {
   from {
     --scroll-fade-top: 0px;
-        }
+    }
   to {
     --scroll-fade-top: 24px;
-        }
     }
+  }
   @keyframes scroll-fade-bottom {
   from {
     --scroll-fade-bottom: 24px;
-        }
+    }
   to {
     --scroll-fade-bottom: 0px;
-        }
     }
+  }
   @keyframes scroll-fade-start {
   from {
     --scroll-fade-start: 0px;
-        }
+    }
   to {
     --scroll-fade-start: 24px;
-        }
     }
+  }
   @keyframes scroll-fade-end {
   from {
     --scroll-fade-end: 24px;
-        }
+    }
   to {
     --scroll-fade-end: 0px;
-        }
     }
+  }
 }
 
 :root {
