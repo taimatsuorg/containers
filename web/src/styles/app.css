@@ -142,24 +142,16 @@
     --container-page: 76rem;
     --radius: 0.5rem;
     --color-image-outline: var(--image-outline);
-    --skeuo-chip: var(--skeuo-chip);
-    --skeuo-surface: var(--skeuo-surface);
-    --skeuo-well: var(--skeuo-well);
-    --skeuo-primary: var(--skeuo-primary);
-    --skeuo-pressed: var(--skeuo-pressed);
-    --skeuo-raised-hover: var(--skeuo-raised-hover);
-    --skeuo-raised: var(--skeuo-raised);
-    --tag-default-bg: var(--tag-default-bg);
     --color-scrollbar-hover: var(--scrollbar-hover);
-    --scrollbar: var(--scrollbar);
+    --color-scrollbar: var(--scrollbar);
     --color-input: var(--input);
     --color-border: var(--border);
     --color-destructive: var(--destructive);
     --color-accent-foreground: var(--accent-foreground);
-    --accent: var(--accent);
-    --muted: var(--muted);
+    --color-accent: var(--accent);
+    --color-muted: var(--muted);
     --color-secondary-foreground: var(--secondary-foreground);
-    --secondary: var(--secondary);
+    --color-secondary: var(--secondary);
     --color-ring: var(--ring);
     --color-primary-foreground: var(--primary-foreground);
     --color-primary: var(--primary);
@@ -170,7 +162,6 @@
     --color-popover: var(--popover);
     --color-card: var(--card);
     --color-background: var(--background);
-    --radius-max: var(--radius-max);
   @keyframes scroll-fade-top {
   from {
     --scroll-fade-top: 0px;
@@ -466,8 +457,24 @@
     scrollbar-color: var(--scrollbar) transparent;
         }
     }
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+    }
+  html {
+    background-color: var(--background);
+    color-scheme: light;
+    }
+  html.dark {
+    color-scheme: dark;
+    }
   body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-feature-settings: normal;
     letter-spacing: normal;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     }
   code, kbd, pre, samp {
     font-feature-settings: normal;
@@ -476,9 +483,6 @@
     --frame-r: 0px;
     --frame-p: 0px;
     --frame-b: 0px;
-    }
-  html {
-    background-color: var(--background);
     }
   ::selection {
     background-color: var(--selection);
