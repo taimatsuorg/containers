@@ -7,6 +7,7 @@ import { queryClient } from "@/api/queries"
 import { followInput } from "@/auth/session"
 import { I18nProvider, prepareI18n } from "@/i18n"
 import { router } from "@/router"
+import { LoginPage } from "@/routes/login"
 import "@/styles/app.css"
 import { followSystemTheme } from "@/theme"
 
@@ -18,12 +19,17 @@ const root = document.getElementById("root")
 if (root) {
   void prepareI18n().then((catalogue) => {
     document.documentElement.lang = catalogue.locale
+    const isLogin = window.location.pathname === "/auth/login"
     createRoot(root).render(
       <StrictMode>
         <I18nProvider>
-          <QueryClientProvider client={queryClient}>
-            <RouterProvider router={router} />
-          </QueryClientProvider>
+          {isLogin ? (
+            <LoginPage />
+          ) : (
+            <QueryClientProvider client={queryClient}>
+              <RouterProvider router={router} />
+            </QueryClientProvider>
+          )}
         </I18nProvider>
       </StrictMode>,
     )

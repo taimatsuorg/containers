@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
-	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -105,8 +104,11 @@ func (s *Server) withAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		// Public auth and favicon routes
-		if r.URL.Path == "/auth/login" || r.URL.Path == "/auth/logout" || r.URL.Path == "/favicon.svg" {
+		// Public auth, static asset, and favicon routes
+		if r.URL.Path == "/auth/login" ||
+			r.URL.Path == "/auth/logout" ||
+			r.URL.Path == "/favicon.svg" ||
+			strings.HasPrefix(r.URL.Path, "/assets/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -165,11 +167,7 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = loginTmpl.Execute(w, map[string]any{
-		"Return": ret,
-		"Error":  "",
-	})
+	s.handleSPA(w, r)
 }
 
 func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
@@ -184,14 +182,16 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 	ret := sanitizeReturnURL(r.FormValue("return"))
+	wantsJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
 
 	if !s.auth.verifyCredentials(username, password) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = loginTmpl.Execute(w, map[string]any{
-			"Return": ret,
-			"Error":  "Invalid username or password.",
-		})
+		if wantsJSON {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"error": "Invalid username or password.",
+			})
+			return
+		}
+		http.Redirect(w, r, "/auth/login?error=1&return="+url.QueryEscape(ret), http.StatusFound)
 		return
 	}
 
@@ -211,6 +211,13 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 		Secure:   isHTTPS,
 		MaxAge:   int(sessionTTL.Seconds()),
 	})
+	if wantsJSON {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ok":     true,
+			"return": ret,
+		})
+		return
+	}
 	http.Redirect(w, r, ret, http.StatusFound)
 }
 
@@ -235,108 +242,3 @@ func sanitizeReturnURL(raw string) string {
 	}
 	return raw
 }
-
-var loginTmpl = template.Must(template.New("login").Parse(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <title>Sign in – Containers</title>
-  <style>
-    :root { color-scheme: light dark; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0b0f19;
-      color: #e2e8f0;
-      padding: 1rem;
-    }
-    .card {
-      width: 100%;
-      max-width: 360px;
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 12px;
-      padding: 1.75rem;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      margin-bottom: 1.5rem;
-      font-weight: 600;
-      font-size: 1.05rem;
-      color: #f8fafc;
-    }
-    label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: #94a3b8;
-      margin-bottom: 0.35rem;
-    }
-    input {
-      width: 100%;
-      padding: 0.6rem 0.75rem;
-      margin-bottom: 1rem;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      background: #0f172a;
-      color: #f8fafc;
-      font-size: 0.9rem;
-      outline: none;
-    }
-    input:focus { border-color: #38bdf8; }
-    button {
-      width: 100%;
-      padding: 0.65rem;
-      border: none;
-      border-radius: 8px;
-      background: #0284c7;
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-    button:hover { background: #0369a1; }
-    .err {
-      margin-bottom: 1rem;
-      padding: 0.6rem 0.75rem;
-      border-radius: 8px;
-      background: rgba(239,68,68,0.15);
-      border: 1px solid rgba(239,68,68,0.4);
-      color: #fca5a5;
-      font-size: 0.85rem;
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="brand">
-      <svg viewBox="0 0 32 32" fill="none" width="24" height="24" aria-hidden="true">
-        <rect width="32" height="32" rx="8" fill="#0F172A"/>
-        <path d="M16 6L25 11.2V20.8L16 26L7 20.8V11.2L16 6Z" stroke="#38BDF8" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M16 16L25 11.2M16 16L7 11.2M16 16V26" stroke="#38BDF8" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M11.5 8.6L20.5 13.8" stroke="#818CF8" stroke-width="1.75" stroke-linecap="round"/>
-      </svg>
-      <span>Containers</span>
-    </div>
-    {{if .Error}}<div class="err">{{.Error}}</div>{{end}}
-    <form method="POST" action="/auth/login">
-      <input type="hidden" name="return" value="{{.Return}}" />
-      <label for="username">Username</label>
-      <input id="username" name="username" type="text" autocomplete="username" required autofocus />
-      <label for="password">Password</label>
-      <input id="password" name="password" type="password" autocomplete="current-password" required />
-      <button type="submit">Sign in</button>
-    </form>
-  </div>
-</body>
-</html>`))
